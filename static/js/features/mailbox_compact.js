@@ -107,7 +107,7 @@
             const summary = document.getElementById('compactModeSummary');
             if (!container) return;
 
-            const visibleGroups = (groupItems || []).filter(group => !isTempMailboxGroup(group));
+            const visibleGroups = (groupItems || []);
             if (visibleGroups.length === 0) {
                 container.innerHTML = `<div class="compact-empty-inline">${escapeHtml(translateCompactText('暂无分组'))}</div>`;
                 if (summary) {
@@ -523,8 +523,6 @@
             console.debug('[email-copied] email:', email, 'pollEnabled:', enabled, 'mailboxViewMode:', typeof mailboxViewMode !== 'undefined' ? mailboxViewMode : 'undefined');
             if (!enabled) return;
             // 不限制视图模式：标准模式和简洁模式均触发轮询
-            var isTemp = typeof isTempEmailGroup !== 'undefined' ? isTempEmailGroup : false;
-            if (isTemp) return;
             var accounts = typeof getCompactVisibleAccounts === 'function' ? getCompactVisibleAccounts() : [];
             var found = accounts.some(function(a) { return a.email === email; });
             if (!found) return;

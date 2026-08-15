@@ -177,28 +177,6 @@ class CoreFeatureTests(unittest.TestCase):
         logs = audit_data.get("logs") or []
         self.assertTrue(any(l.get("trace_id") == export_trace_id for l in logs))
 
-    def test_temp_email_generate_and_list_mocked(self):
-        client = self.app.test_client()
-        self._login(client)
-
-        email_addr = f"temp_{uuid.uuid4().hex}@example.com"
-        # Mock legacy bridge 返回元组 (email_addr, None)
-        # 当前正式入口经 temp mail provider 间接调用兼容 bridge，因此这里仍 patch gptmail 模块。
-        from outlook_web.services import gptmail as gptmail_service
-
-        with patch.object(gptmail_service, "generate_temp_email", return_value=(email_addr, None)):
-            created = client.post("/api/temp-emails/generate", json={"prefix": "x", "domain": "y"})
-        self.assertEqual(created.status_code, 200)
-        created_data = created.get_json()
-        self.assertEqual(created_data.get("success"), True)
-        self.assertEqual(created_data.get("email"), email_addr)
-
-        listing = client.get("/api/temp-emails")
-        self.assertEqual(listing.status_code, 200)
-        listing_data = listing.get_json()
-        self.assertEqual(listing_data.get("success"), True)
-        self.assertIn(email_addr, [e.get("email") for e in (listing_data.get("emails") or [])])
-
     def test_refresh_all_stream_has_start_and_complete_events(self):
         client = self.app.test_client()
         self._login(client)

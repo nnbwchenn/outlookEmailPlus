@@ -50,7 +50,6 @@ class V190FrontendContractTests(unittest.TestCase):
             "#compactAccountList",
             "#refreshLogContainer",
             "#auditLogContainer",
-            "#tempEmailContainer",
         ]:
             self.assertIn(selector, js)
 
@@ -106,7 +105,6 @@ class V190FrontendContractTests(unittest.TestCase):
             "📤 导出",
             "🔄 全量刷新 Token",
             "＋ 添加账号",
-            "＋ 创建邮箱",
             "🔑 验证码",
             "审计日志",
             "📋 审计日志",
@@ -118,9 +116,9 @@ class V190FrontendContractTests(unittest.TestCase):
             "✉️ Email 通知",
             "📬 Telegram 通知",
             "📬 Telegram 推送",
-            "这里只配置 Email 通知通道。普通邮箱需在账号列表开启通知后才会通过 Email 发送；临时邮箱按当前通知规则处理。启用后仅从新到达的邮件开始通知。",
+            "这里只配置 Email 通知通道。普通邮箱需在账号列表开启通知后才会通过 Email 发送。启用后仅从新到达的邮件开始通知。",
             "这里只配置 Email 渠道的接收邮箱，不会让所有普通邮箱自动发送。",
-            "这里只配置 Telegram 通知通道。普通邮箱需在账号列表开启通知后才会通过 Telegram 发送；临时邮箱按当前通知规则处理。",
+            "这里只配置 Telegram 通知通道。普通邮箱需在账号列表开启通知后才会通过 Telegram 发送。",
             "验证当前 Telegram 通知通道是否配置正确",
             "通知",
             "该邮箱通知参与",
@@ -133,7 +131,6 @@ class V190FrontendContractTests(unittest.TestCase):
             "建议设置为 30 天，防止 Token 因 90 天不使用而过期",
             "默认分组",
             "请从左侧选择一个邮箱账号",
-            "选择一个临时邮箱查看邮件",
             "表达式有效",
             "下次执行:",
             "验证失败:",
@@ -193,7 +190,6 @@ class V190FrontendContractTests(unittest.TestCase):
         main_js = self._get_text(client, "/static/js/main.js")
         groups_js = self._get_text(client, "/static/js/features/groups.js")
         emails_js = self._get_text(client, "/static/js/features/emails.js")
-        temp_emails_js = self._get_text(client, "/static/js/features/temp_emails.js")
         self.assertIn("translateAppTextLocal('自动按类型分组')", accounts_js)
         self.assertIn("translateAppTextLocal('支持混合格式，每行一个账号", accounts_js)
         self.assertIn("translateAppTextLocal('请选择标签...')", main_js)
@@ -205,7 +201,6 @@ class V190FrontendContractTests(unittest.TestCase):
             groups_js,
         )
         self.assertIn("translateAppTextLocal('收件箱为空')", emails_js)
-        self.assertIn("translateAppTextLocal('暂无邮件')", temp_emails_js)
 
     def test_frontend_email_list_sorting_fallback_is_present_on_all_key_paths(self):
         client = self.app.test_client()
@@ -247,12 +242,12 @@ class V190FrontendContractTests(unittest.TestCase):
         self.assertIn("✉️ Email 通知", index_html)
         self.assertIn("📬 Telegram 通知", index_html)
         self.assertIn(
-            "这里只配置 Email 通知通道。普通邮箱需在账号列表开启通知后才会通过 Email 发送；临时邮箱按当前通知规则处理。启用后仅从新到达的邮件开始通知。",
+            "这里只配置 Email 通知通道。普通邮箱需在账号列表开启通知后才会通过 Email 发送。启用后仅从新到达的邮件开始通知。",
             index_html,
         )
         self.assertIn("这里只配置 Email 渠道的接收邮箱，不会让所有普通邮箱自动发送。", index_html)
         self.assertIn(
-            "这里只配置 Telegram 通知通道。普通邮箱需在账号列表开启通知后才会通过 Telegram 发送；临时邮箱按当前通知规则处理。",
+            "这里只配置 Telegram 通知通道。普通邮箱需在账号列表开启通知后才会通过 Telegram 发送。",
             index_html,
         )
         self.assertNotIn(
@@ -442,7 +437,6 @@ class V190FrontendContractTests(unittest.TestCase):
         self.assertIn("'✅ 连通正常': '✅ Connection OK'", i18n_js)
         self.assertIn("'⏳ 测试中…': '⏳ Testing...'", i18n_js)
         self.assertIn("'基础': 'Basic'", i18n_js)
-        self.assertIn("'临时邮箱': 'Temp Mailboxes'", i18n_js)
         self.assertIn("'API 安全': 'API Security'", i18n_js)
         self.assertIn("'自动化': 'Automation'", i18n_js)
 

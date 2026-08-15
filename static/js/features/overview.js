@@ -216,7 +216,7 @@ function renderOverviewSummary(data) {
         <div class="kpi-row">
             ${renderKpiCard('总账号数', formatNumber(accountStatus.total || 0), ovLabelValue('活跃', formatNumber(accountStatus.active || 0)), 'kpi-primary', '快速观察账号池总体规模，以及当前真正处于活跃状态的账号占比。')}
             ${renderKpiCard('邮箱池可用', formatNumber(pool.available || 0), ovLabelValue('占用', formatNumber(pool.in_use || 0)), 'kpi-success', '这张卡片更适合盯实时供给，避免申领高峰时可用量突然见底。')}
-            ${renderKpiCard('今日验证码提取', formatNumber(kpi.verification_extracted || 0), ovLabelValue('临时邮箱', formatNumber(kpi.temp_emails_active || 0)), 'kpi-accent', '用来快速判断今天验证链路的真实活跃度，以及临时邮箱侧是否同步跟上。')}
+            ${renderKpiCard('今日验证码提取', formatNumber(kpi.verification_extracted || 0), ovLabelValue('AI 使用', formatNumber(kpi.ai_used_count || 0)), 'kpi-accent', '用来快速判断今天验证链路的真实活跃度。')}
             ${renderKpiCard('最近刷新成功率', formatPercent(refresh.success_rate_7d || 0), ovLabelValue('失败', formatNumber(refresh.last_fail_count || 0)), 'kpi-warn', '当这张卡片连续下滑时，优先检查刷新任务、凭据有效性和网络稳定性。')}
         </div>
         <div class="two-col">
@@ -262,9 +262,7 @@ function renderOverviewSummary(data) {
                 badge: '当天',
                 hoverNote: '这是面向今天的即时读数，适合和外部流量高峰一起对着看。',
                 body: `
-                    <div class="ov-kv"><span>${esc(ovT('今日收件'))}</span><strong>${formatNumber(kpi.emails_received || 0)}</strong></div>
                     <div class="ov-kv"><span>${esc(ovT('验证码提取'))}</span><strong>${formatNumber(kpi.verification_extracted || 0)}</strong></div>
-                    <div class="ov-kv"><span>${esc(ovT('活跃临时邮箱'))}</span><strong>${formatNumber(kpi.temp_emails_active || 0)}</strong></div>
                 `
             })}
         </div>
@@ -691,7 +689,6 @@ function formatChannelLabel(value) {
         'graph junk': 'Graph 垃圾箱',
         'imap new': 'IMAP 新链路',
         'imap old': 'IMAP 旧链路',
-        'temp mail': '临时邮箱通道',
         'ai fallback': 'AI 兜底通道',
         graph: 'Graph 通道',
         imap: 'IMAP 通道',
@@ -702,7 +699,6 @@ function formatChannelLabel(value) {
         graph_junk: 'Graph 垃圾箱',
         imap_new: 'IMAP 新链路',
         imap_old: 'IMAP 旧链路',
-        temp_mail: '临时邮箱通道',
         ai_fallback: 'AI 兜底通道',
         graph_delta: 'Graph 通道',
         imap_ssl: 'IMAP 通道'

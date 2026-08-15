@@ -807,8 +807,6 @@ class ExternalApiRegressionTests(ExternalApiBaseTest):
         data = resp.get_json()
         self.assertTrue(data.get("success"))
         self.assertIn("refresh_interval_days", data.get("settings", {}))
-        self.assertIn("temp_mail_api_key_set", data.get("settings", {}))
-        self.assertNotIn("gptmail_api_key_set", data.get("settings", {}))
 
 
 class ExternalApiSchemaValidationTests(ExternalApiBaseTest):
@@ -1953,28 +1951,6 @@ class ExternalApiRegressionExtendedTests(ExternalApiBaseTest):
 
             key = settings_repo.get_external_api_key()
             self.assertTrue(key, "external_api_key 不应被清空")
-
-    def test_settings_empty_legacy_gptmail_api_key_does_not_clear_temp_mail_api_key(
-        self,
-    ):
-        client = self.app.test_client()
-        self._login(client)
-
-        with self.app.app_context():
-            from outlook_web.repositories import settings as settings_repo
-
-            settings_repo.set_setting("temp_mail_api_key", "temp-mail-secret")
-            settings_repo.set_setting("gptmail_api_key", "legacy-secret")
-
-        resp = client.put("/api/settings", json={"gptmail_api_key": ""})
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.get_json().get("success"))
-
-        with self.app.app_context():
-            from outlook_web.repositories import settings as settings_repo
-
-            self.assertEqual(settings_repo.get_setting("temp_mail_api_key"), "temp-mail-secret")
-            self.assertEqual(settings_repo.get_setting("gptmail_api_key"), "legacy-secret")
 
 
 # ---------------------------------------------------------------------------

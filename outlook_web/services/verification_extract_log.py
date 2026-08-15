@@ -5,17 +5,6 @@ from typing import Any, Dict, Optional, Tuple
 from outlook_web.db import get_db
 
 
-def encode_temp_mail_log_account_id(temp_mail_id: Any) -> Optional[int]:
-    # 用负数编码临时邮箱 ID，与 accounts 表正数 ID 区分，使 JOIN 条件可用 account_id > 0 / < 0 一刀切
-    try:
-        value = int(temp_mail_id or 0)
-    except (TypeError, ValueError):
-        return None
-    if value <= 0:
-        return None
-    return -value
-
-
 def resolve_extract_log_outcome(result: Optional[Dict[str, Any]]) -> Tuple[str, Optional[str]]:
     # 优先级：code > link > none；result 可能是 None（异常路径），需防御
     payload = dict(result or {})

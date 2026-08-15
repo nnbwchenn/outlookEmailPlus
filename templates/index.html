@@ -41,9 +41,6 @@
                 <button class="nav-item" data-page="pool-admin" onclick="navigate('pool-admin')">
                     <span class="nav-icon">🎱</span><span>号池管理</span>
                 </button>
-                <button class="nav-item" data-page="temp-emails" onclick="navigate('temp-emails')">
-                    <span class="nav-icon">⚡</span><span>临时邮箱</span>
-                </button>
 
                 <div class="nav-section">Token</div>
                 {% if OAUTH_TOOL_ENABLED %}
@@ -117,7 +114,6 @@
                     <div id="statTotalAccounts"></div>
                     <div id="statValidTokens"></div>
                     <div id="statExpiredTokens"></div>
-                    <div id="statTempEmails"></div>
                     <ul id="dashboardGroupList"></ul>
                 </div>
                 <div class="overview-tab-shell ov-apple-shell">
@@ -352,76 +348,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- ===== Page: Temp Emails ===== -->
-            <div class="page page-hidden page-no-padding page-workspace" id="page-temp-emails">
-                <div class="workspace workspace-temp-emails" data-workspace="temp-emails">
-                    <!-- Temp Email List Column -->
-                    <div class="workspace-panel accounts-column" id="tempEmailPanel" style="width:300px;">
-                        <div class="column-header">
-                            <span class="column-title">⚡ 临时邮箱</span>
-                            <button class="btn btn-sm btn-primary" onclick="generateTempEmail()">+ 创建</button>
-                        </div>
-                        <div style="padding:12px;border-bottom:1px solid var(--border-light);display:flex;flex-direction:column;gap:8px;">
-                            <select class="form-input" id="tempEmailProviderSelect" onchange="onTempEmailProviderChange(this.value)" title="选择创建邮箱的 Provider">
-                                <option value="legacy_bridge">🔧 GPTMail (Legacy Bridge)</option>
-                                <option value="cloudflare_temp_mail">☁ Cloudflare Temp Mail</option>
-                            </select>
-                            <input type="text" class="form-input" id="tempEmailPrefixInput" placeholder="前缀（可选）" maxlength="64">
-                            <select class="form-input" id="tempEmailDomainSelect" disabled>
-                                <option value="">自动分配域名</option>
-                            </select>
-                            <div id="tempEmailOptionsHint" class="form-hint" style="margin:0;">支持自定义前缀和多域名创建。</div>
-                            <div id="tempEmailOptionsStatus" class="form-error" style="display:none;margin:0;"></div>
-                        </div>
-                        <div class="column-body" id="tempEmailContainer">
-                            <div class="empty-state">
-                                <span class="empty-icon">📭</span>
-                                <p>暂无临时邮箱</p>
-                                <button class="btn btn-primary" onclick="generateTempEmail()">创建第一个临时邮箱</button>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Temp Email Messages Column -->
-                    <div class="workspace-panel emails-column" id="tempEmailMessagePanel">
-                        <div class="column-header">
-                            <span class="column-title" id="tempEmailCurrentName" onclick="copyTempEmailCurrent()" title="点击复制邮箱地址" style="cursor:pointer;">选择一个临时邮箱</span>
-                            <div style="display:flex;gap:4px;">
-                                <button class="btn btn-sm btn-ghost" id="tempEmailRefreshBtn" onclick="if(currentAccount && isTempEmailGroup) loadTempEmailMessages(currentAccount)" style="display:none;">🔄 获取邮件</button>
-                            </div>
-                        </div>
-                        <div class="column-body" id="tempEmailMessageList">
-                            <div class="empty-state">
-                                <span class="empty-icon">📬</span>
-                                <p>选择一个临时邮箱查看邮件</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="workspace-panel emails-column" id="tempEmailDetailSection" style="display:none;border-left:1px solid var(--border);">
-                        <div class="column-header">
-                            <span class="column-title">邮件详情</span>
-                        </div>
-                        <div class="email-detail-toolbar" id="tempEmailDetailToolbar" style="display:none;">
-                            <button class="btn btn-sm btn-ghost" onclick="showEmailList()">← 返回</button>
-                            <button class="btn btn-sm btn-ghost" onclick="openFullscreenEmail()">🔍 全屏查看</button>
-                            <button class="btn btn-sm btn-accent" onclick="extractVerificationFromDetail(this)" title="从邮件正文提取验证码/链接" style="font-size:0.72rem;padding:2px 8px;">🔑 验证码</button>
-                            <label style="display:flex;align-items:center;gap:4px;font-size:0.78rem;margin-left:8px;cursor:pointer;">
-                                <input type="checkbox" id="tempEmailTrustCheckbox" onchange="toggleTrustMode(this)">
-                                <span style="user-select:none;">信任此邮件</span>
-                            </label>
-                            <div style="flex:1;"></div>
-                            <button class="btn btn-sm btn-danger" onclick="confirmDeleteCurrentEmail()">🗑️ 删除</button>
-                        </div>
-                        <div class="email-detail-container" id="tempEmailDetail">
-                            <div class="empty-state">
-                                <span class="empty-icon">📄</span>
-                                <p>选择一封邮件查看详情</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- ===== Page: Refresh Log ===== -->
             <div class="page page-hidden" id="page-refresh-log">
                 <div class="card">
@@ -442,7 +368,6 @@
                 <!-- Tab 导航栏 -->
                 <div class="settings-tab-nav" id="settingsTabNav">
                     <button class="settings-tab active" data-tab="basic" onclick="switchSettingsTab('basic')">基础</button>
-                    <button class="settings-tab" data-tab="temp-mail" onclick="switchSettingsTab('temp-mail')">临时邮箱</button>
                     <button class="settings-tab" data-tab="api-security" onclick="switchSettingsTab('api-security')">API 安全</button>
                     <button class="settings-tab" data-tab="automation" onclick="switchSettingsTab('automation')">自动化</button>
                 </div>
@@ -498,150 +423,6 @@
                         </div>
                     </div>
 
-                    <!-- Tab 2: 临时邮箱 -->
-                    <div class="settings-tab-pane" id="settings-tab-temp-mail">
-                        <!-- Provider 单选按钮组 -->
-                        <div class="card" style="margin-bottom: 1rem;">
-                            <div class="card-body" style="padding: 1rem;">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label class="form-label">全局临时邮箱 Provider</label>
-                                    <div class="provider-radio-group">
-                                        <label class="provider-radio">
-                                            <input type="radio" name="tempMailProvider" value="legacy_bridge" onchange="onTempMailProviderChange('legacy_bridge')">
-                                            <span class="provider-radio-label">
-                                                <span class="provider-name">🔧 GPTMail (Legacy Bridge)</span>
-                                                <span class="provider-desc">自建域名临时邮箱服务</span>
-                                            </span>
-                                        </label>
-                                        <label class="provider-radio">
-                                            <input type="radio" name="tempMailProvider" value="cloudflare_temp_mail" onchange="onTempMailProviderChange('cloudflare_temp_mail')">
-                                            <span class="provider-radio-label">
-                                                <span class="provider-name">☁ Cloudflare Temp Mail</span>
-                                                <span class="provider-desc">CF Worker 部署的临时邮箱</span>
-                                            </span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- GPTMail 配置面板 -->
-                        <div class="card" id="gptmailConfigPanel">
-                            <div class="card-header">
-                                <div class="card-title">🔧 GPTMail 配置</div>
-                            </div>
-                            <div class="card-body" style="padding: 1.5rem;">
-                                <div class="form-group">
-                                    <label class="form-label">临时邮箱 API Base URL</label>
-                                    <input type="text" class="form-input" id="settingsTempMailApiBaseUrl" placeholder="https://mail.example.com">
-                                    <div class="form-hint">上游临时邮箱服务地址，留空则使用默认配置。</div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">临时邮箱 API Key</label>
-                                    <input type="text" class="form-input" id="settingsTempMailApiKey" placeholder="输入临时邮箱 API Key">
-                                    <div class="form-hint">用于临时邮箱能力。旧版临时邮箱 API Key 字段仅保留兼容读取与迁移，不再作为正式配置字段。</div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">可用域名（JSON）</label>
-                                    <textarea class="form-input" id="settingsTempMailDomains" rows="4" placeholder='[
-  {"name": "mail.example.com", "enabled": true},
-  {"name": "temp.example.net", "enabled": true}
-]' style="font-family: monospace; font-size: 0.84rem;"></textarea>
-                                    <div class="form-hint">支持字符串数组或 `{name, enabled}` 对象数组。</div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">默认域名</label>
-                                    <input type="text" class="form-input" id="settingsTempMailDefaultDomain" placeholder="mail.example.com">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">前缀规则（JSON）</label>
-                                    <textarea class="form-input" id="settingsTempMailPrefixRules" rows="4" placeholder='{
-  "min_length": 1,
-  "max_length": 32,
-  "pattern": "^[a-z0-9][a-z0-9._-]*$"
-}' style="font-family: monospace; font-size: 0.84rem;"></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- CF Worker 配置面板 -->
-                        <div class="card" id="cfWorkerConfigPanel" style="display: none;">
-                            <div class="card-header">
-                                <div class="card-title">☁ Cloudflare Temp Email Worker 配置</div>
-                            </div>
-                            <div class="card-body" style="padding: 1.5rem;">
-                                <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">与 GPTMail 完全独立的配置。部署 dreamhunter2333/cloudflare_temp_email 后填写。</p>
-                                <div class="form-group">
-                                    <label class="form-label">CF Worker 部署地址</label>
-                                    <input type="text" class="form-input" id="settingsCfWorkerBaseUrl" placeholder="https://mail.yourname.workers.dev">
-                                    <div class="form-hint">Cloudflare Worker 的部署 URL，不含尾部斜杠。</div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">CF Worker Admin 密码</label>
-                                    <input type="password" class="form-input" id="settingsCfWorkerAdminKey" placeholder="CF Worker 的 ADMIN_PASSWORDS 值" autocomplete="off">
-                                    <div class="form-hint">对应 CF Worker 环境变量 ADMIN_PASSWORDS 中的密码值。</div>
-                                </div>
-                                <div class="form-group" style="margin-top: 0.75rem;">
-                                    <button type="button" class="btn btn-secondary" id="btnSyncCfWorkerDomains" onclick="syncCfWorkerDomains()" style="font-size: 0.85rem;">
-                                        ☁ 从 CF Worker 同步域名
-                                    </button>
-                                    <div class="form-hint" id="cfWorkerSyncTime" style="margin-top: 0.4rem;">
-                                        自动读取 CF Worker 的域名配置，同步至下方域名字段。
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">可用域名（只读 · 通过同步按钮更新）</label>
-                                    <textarea class="form-input readonly-field" id="settingsCfWorkerDomains" rows="4" readonly placeholder="尚未同步，请点击上方按钮同步" style="font-family: monospace; font-size: 0.84rem;"></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">默认域名（只读 · 通过同步按钮更新）</label>
-                                    <input type="text" class="form-input readonly-field" id="settingsCfWorkerDefaultDomain" readonly placeholder="尚未同步">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">前缀规则（JSON）</label>
-                                    <textarea class="form-input" id="settingsCfWorkerPrefixRules" rows="4" placeholder='{
-  "min_length": 1,
-  "max_length": 32,
-  "pattern": "^[a-z0-9][a-z0-9._-]*$"
-}' style="font-family: monospace; font-size: 0.84rem;"></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 插件 Provider 配置面板 -->
-                        <div class="card" id="pluginProviderConfigPanel" style="display:none;margin-top:1rem;">
-                            <div class="card-header">
-                                <div class="card-title" id="pluginProviderConfigTitle">🧩 插件 Provider 配置</div>
-                            </div>
-                            <div class="card-body" id="pluginProviderConfigBody" style="padding: 1.5rem;">
-                                <div class="form-hint">请选择一个已安装插件 Provider。</div>
-                            </div>
-                        </div>
-
-                        <!-- 插件管理 -->
-                        <div class="card" id="pluginManagerCard" style="margin-top:1rem;">
-                            <div class="card-header" onclick="PluginManager.toggleCard()" style="cursor:pointer;user-select:none;">
-                                <div style="display:flex;align-items:center;gap:0.75rem;">
-                                    <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--clr-primary),var(--clr-accent));border-radius:8px;color:white;font-size:0.9rem;">🧩</div>
-                                    <div>
-                                        <div class="card-title">插件管理</div>
-                                        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.1rem;">安装、卸载并应用第三方 Provider 插件；运行时配置请在上方 Provider 设置区完成</div>
-                                    </div>
-                                </div>
-                                <div style="display:flex;align-items:center;gap:0.6rem;">
-                                    <span id="pluginManagerBadge" class="badge" style="display:none;"></span>
-                                    <span class="toggle-icon" id="pluginManagerToggleIcon">▼</span>
-                                </div>
-                            </div>
-                            <div class="card-body" id="pluginManagerBody" style="display:none;">
-                                <div id="pluginManagerContent">
-                                    <div style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.85rem;">点击上方标题展开插件管理…</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tab 3: API 安全 -->
                     <div class="settings-tab-pane" id="settings-tab-api-security">
                         <div class="card">
                             <div class="card-header">
@@ -864,7 +645,7 @@
                                         <input type="checkbox" id="emailNotificationEnabled">
                                         <span class="form-label" style="margin: 0;">启用 Email 通知</span>
                                     </label>
-                                    <div class="form-hint">这里只配置 Email 通知通道。普通邮箱需在账号列表开启通知后才会通过 Email 发送；临时邮箱按当前通知规则处理。启用后仅从新到达的邮件开始通知。</div>
+                                    <div class="form-hint">这里只配置 Email 通知通道。普通邮箱需在账号列表开启通知后才会通过 Email 发送。启用后仅从新到达的邮件开始通知。</div>
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">接收通知邮箱</label>
@@ -887,7 +668,7 @@
                                 <div class="form-group">
                                     <label class="form-label">Bot Token <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">（从 @BotFather 获取）</span></label>
                                     <input type="password" class="form-input" id="telegramBotToken" placeholder="输入 Bot Token" autocomplete="off">
-                                    <div class="form-hint">这里只配置 Telegram 通知通道。普通邮箱需在账号列表开启通知后才会通过 Telegram 发送；临时邮箱按当前通知规则处理。</div>
+                                    <div class="form-hint">这里只配置 Telegram 通知通道。普通邮箱需在账号列表开启通知后才会通过 Telegram 发送。</div>
                                     <div class="form-hint">格式：1234567890:AAxxxxxx（留空则禁用推送）</div>
                                 </div>
                                 <div class="form-group">
@@ -930,7 +711,7 @@
                                         <input type="checkbox" id="webhookNotificationEnabled">
                                         <span class="form-label" style="margin: 0;">启用 Webhook 通知</span>
                                     </label>
-                                    <div class="form-hint">全局单 URL 通道；普通邮箱和临时邮箱都遵循当前通知参与规则。</div>
+                                    <div class="form-hint">全局单 URL 通道；普通邮箱遵循当前通知参与规则。</div>
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">Webhook URL</label>
@@ -1066,7 +847,6 @@
                                 <option value="outlook">Outlook</option>
                                 <option value="imap">IMAP</option>
                                 <option value="custom">Custom</option>
-                                <option value="cloudflare_temp_mail">CF Temp Mail</option>
                             </select>
                             <select id="poolAdminGroupFilter" class="form-select" style="width:auto;min-width:110px;" onchange="loadPoolAdmin(true)">
                                 <option value="">所有分组</option>

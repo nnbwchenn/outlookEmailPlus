@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime, timezone
 from typing import Any, Callable
 
 from outlook_web.repositories import accounts as accounts_repo
 from outlook_web.repositories import notification_state as notification_state_repo
 from outlook_web.repositories import settings as settings_repo
-from outlook_web.repositories import temp_emails as temp_emails_repo
 from outlook_web.services import email_push, webhook_push
-from outlook_web.services.temp_mail_service import TempMailError, TempMailService
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +15,12 @@ CHANNEL_EMAIL = "email"
 CHANNEL_TELEGRAM = "telegram"
 CHANNEL_WEBHOOK = "webhook"
 SOURCE_ACCOUNT = "account"
-SOURCE_TEMP_EMAIL = "temp_email"
 DEFAULT_EMAIL_JOB_INTERVAL_SECONDS = 60
 MAX_EMAIL_NOTIFICATIONS_PER_JOB = 50
 MAX_TELEGRAM_NOTIFICATIONS_PER_JOB = 20
 MAX_WEBHOOK_NOTIFICATIONS_PER_JOB = 50
 ACCOUNT_INCLUDED_FOLDERS = ("inbox", "junkemail")
 MAX_EMAIL_BODY_LENGTH = 4000
-MAX_TEMP_EMAIL_PREVIEW_LENGTH = 200
 
 
 class NotificationDispatchError(Exception):
@@ -49,13 +44,6 @@ def _max_cursor_value(current: str, candidate: str) -> str:
     return candidate if candidate > current else current
 
 
-def _html_to_plain(html_text: str) -> str:
-    if not html_text:
-        return ""
-    text = re.sub(r"<[^>]+>", " ", html_text)
-    return re.sub(r"\s+", " ", text).strip()
-
-
 def build_source_key(source_type: str, raw_key: str) -> str:
     return f"{source_type}:{(raw_key or '').strip().lower()}"
 
@@ -70,21 +58,9 @@ def _normalize_account_source(account: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _normalize_temp_email_source(temp_email: dict[str, Any]) -> dict[str, Any]:
-    address = temp_email.get("email", "")
-    return {
-        "source_type": SOURCE_TEMP_EMAIL,
-        "source_key": build_source_key(SOURCE_TEMP_EMAIL, address),
-        "email": address,
-        "label": address,
-        "temp_email": temp_email,
-    }
-
-
 def list_email_notification_sources() -> list[dict[str, Any]]:
     accounts = [acc for acc in accounts_repo.load_accounts() if (acc.get("status") or "active") == "active"]
-    temp_emails = [item for item in temp_emails_repo.load_temp_emails() if (item.get("status") or "active") == "active"]
-    return [_normalize_account_source(acc) for acc in accounts] + [_normalize_temp_email_source(item) for item in temp_emails]
+    return [_normalize_account_source(acc) for acc in accounts]
 
 
 def _is_account_notification_participant(account: dict[str, Any]) -> bool:
@@ -188,50 +164,9 @@ def _fetch_account_messages(source: dict[str, Any], since: str) -> list[dict[str
     return emails
 
 
-def _fetch_temp_email_messages(source: dict[str, Any], since: str) -> list[dict[str, Any]]:
-    address = source["email"]
-
-    # 通过 TempMailService（provider factory）触发远端同步并写入 DB。
-    # 忽略返回值（_message_summary 缺少 content/html_content 字段），
-    # 后续直接从 DB 读取完整行数据。
-    try:
-        TempMailService().list_messages(address, sync_remote=True)
-    except (TempMailError, Exception):
-        logger.warning(
-            "[notification_dispatch] temp email sync failed address=%s",
-            address,
-            exc_info=True,
-        )
-
-    messages = temp_emails_repo.get_temp_email_messages(address)
-    results: list[dict[str, Any]] = []
-    for item in messages:
-        received_at = _extract_message_timestamp(item.get("timestamp") or item.get("created_at"))
-        if received_at and received_at <= since:
-            continue
-        plain_content = (item.get("content", "") or "").strip()
-        if not plain_content and item.get("has_html"):
-            plain_content = _html_to_plain(item.get("html_content", "") or "")
-        preview = plain_content[:MAX_TEMP_EMAIL_PREVIEW_LENGTH]
-        results.append(
-            {
-                "message_id": item.get("message_id", ""),
-                "subject": item.get("subject", "") or "无主题",
-                "sender": item.get("from_address", "") or "unknown",
-                "received_at": received_at,
-                "preview": preview,
-                "content": plain_content,
-                "folder": "inbox",
-            }
-        )
-    return results
-
-
 def fetch_source_messages(source: dict[str, Any], since: str) -> list[dict[str, Any]]:
     if source["source_type"] == SOURCE_ACCOUNT:
         return _fetch_account_messages(source, since)
-    if source["source_type"] == SOURCE_TEMP_EMAIL:
-        return _fetch_temp_email_messages(source, since)
     return []
 
 
@@ -260,7 +195,7 @@ def send_business_email_notification(source: dict[str, Any], message: dict[str, 
         body_text = "(正文为空)"
     text_body = (
         f"邮箱来源: {source['label']}\n"
-        f"来源类型: {'普通邮箱' if source['source_type'] == SOURCE_ACCOUNT else '临时邮箱'}\n"
+        f"来源类型: 普通邮箱\n"
         f"目录: {folder}\n"
         f"发件人: {message.get('sender') or '-'}\n"
         f"主题: {message.get('subject') or '无主题'}\n"
@@ -269,7 +204,7 @@ def send_business_email_notification(source: dict[str, Any], message: dict[str, 
     )
     html_body = (
         f"<p><strong>邮箱来源:</strong> {source['label']}</p>"
-        f"<p><strong>来源类型:</strong> {'普通邮箱' if source['source_type'] == SOURCE_ACCOUNT else '临时邮箱'}</p>"
+        f"<p><strong>来源类型:</strong> 普通邮箱</p>"
         f"<p><strong>目录:</strong> {folder}</p>"
         f"<p><strong>发件人:</strong> {message.get('sender') or '-'}</p>"
         f"<p><strong>主题:</strong> {message.get('subject') or '无主题'}</p>"

@@ -3,7 +3,6 @@
         // 选择账号
         function selectAccount(email) {
             currentAccount = email;
-            isTempEmailGroup = false;
             currentFolder = 'inbox';
             currentMethod = 'graph';
 
@@ -168,7 +167,7 @@
                 customFields.style.display = 'none';
                 if (duplicateGroup) duplicateGroup.style.display = '';
                 if (fallbackGroup) fallbackGroup.style.display = '';
-                input.placeholder = translateAppTextLocal('支持混合格式，每行一个账号...\nOutlook: 邮箱----密码----client_id----refresh_token\nIMAP: 邮箱----授权码----provider\n或: 邮箱----密码（自动识别类型）\n临时邮箱: 仅邮箱地址');
+                input.placeholder = translateAppTextLocal('支持混合格式，每行一个账号...\nOutlook: 邮箱----密码----client_id----refresh_token\nIMAP: 邮箱----授权码----provider\n或: 邮箱----密码（自动识别类型）');
                 hint.textContent = translateAppTextLocal('智能识别模式：自动按每行格式和邮箱域名判断类型，自动分组');
                 if (getTokenBtn) getTokenBtn.style.display = 'none';
                 if (importGroupSelect) {
@@ -345,7 +344,7 @@
                         const s = data.summary;
                         if (s.by_provider && Object.keys(s.by_provider).length > 0) {
                             msg += `\n\n--- ${translateAppTextLocal('按类型统计')} ---`;
-                            const provNames = {outlook:'Outlook',gmail:'Gmail',qq:'QQ邮箱','163':'163邮箱','126':'126邮箱',yahoo:'Yahoo',aliyun:'阿里云邮箱',custom:'自定义IMAP',temp_mail:'临时邮箱',gptmail:'临时邮箱'};
+                            const provNames = {outlook:'Outlook',gmail:'Gmail',qq:'QQ邮箱','163':'163邮箱','126':'126邮箱',yahoo:'Yahoo',aliyun:'阿里云邮箱',custom:'自定义IMAP'};
                             for (const [prov, stats] of Object.entries(s.by_provider)) {
                                 const name = provNames[prov] || prov;
                                 msg += `\n${translateAppTextLocal(name)}: ${translateAppTextLocal('成功')} ${stats.imported || 0}`;

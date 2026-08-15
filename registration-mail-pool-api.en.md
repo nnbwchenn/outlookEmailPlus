@@ -324,7 +324,7 @@ Request body:
 | --- | --- | --- | --- |
 | `caller_id` | string | Yes | caller instance, node, or worker identity |
 | `task_id` | string | Yes | unique task ID |
-| `provider` | string | No | provider filter: `outlook` / `imap` / `custom` / `cloudflare_temp_mail` |
+| `provider` | string | No | provider filter: `outlook` / `imap` / `custom` |
 | `project_key` | string | No | project-level reuse and duplicate-prevention context |
 | `email_domain` | string | No | mailbox domain filter; when provided, only eligible mailboxes in that domain are claimed |
 
@@ -334,7 +334,6 @@ Current implementation notes:
 - for a clearer domain-specific contract, use `POST /api/external/pool/claim-domain`; that endpoint requires `email_domain`
 - `outlook.com`, `hotmail.com`, `live.com`, and `live.cn` all map to `provider=outlook`; use `email_domain` when those domains need to be distinguished
 - the current external pool API does not support claiming a specific full mailbox, group, or tag
-- when `provider=cloudflare_temp_mail` and no eligible mailbox exists in pool, the service dynamically creates a CF temp mailbox and returns it as claimed
 
 Success response fields:
 
@@ -360,9 +359,9 @@ curl -X POST https://api.example.com/api/external/pool/claim-random \
   -d '{
     "caller_id": "reg-worker-001",
     "task_id": "task-20260409-0001",
-    "provider": "cloudflare_temp_mail",
+    "provider": "outlook",
     "project_key": "project-A",
-    "email_domain": "zerodotsix.top"
+    "email_domain": "outlook.com"
   }'
 ```
 
@@ -375,8 +374,8 @@ Success response example:
   "message": "success",
   "data": {
     "account_id": 123,
-    "email": "abc123@zerodotsix.top",
-    "email_domain": "zerodotsix.top",
+    "email": "user123@outlook.com",
+    "email_domain": "outlook.com",
     "claim_token": "clm_xxx",
     "claimed_at": "2026-04-09T05:38:26.123Z",
     "lease_expires_at": "2026-04-09T05:48:26.123Z"
@@ -466,11 +465,8 @@ Current implementation notes:
   - future claims in the same project are blocked by recorded success history
   - `claim-complete(result=success)` returns `pool_status=available`
   - the mailbox can be immediately claimed again by other projects
-- when `project_key` is missing/blank, or for `provider=cloudflare_temp_mail` / temp-mail accounts, `success` keeps the legacy `used` behavior
+- when `project_key` is missing/blank, `success` keeps the legacy `used` behavior
 - `/api/external/pool/stats` still aggregates only `accounts.pool_status`; there is no separate project-success counter in the response
-- for `provider=cloudflare_temp_mail`:
-  - `result in ('success','credential_invalid')` triggers a best-effort remote mailbox deletion
-  - deletion failure is non-blocking and does not break `claim-complete` success response
 
 #### Copy-paste Example (task success callback: claim-complete)
 
@@ -611,7 +607,7 @@ The mailbox stays `claimed`, then moves to `cooldown` after lease expiration, an
 
 ### Q4: Can the same mailbox be reused in another project after `success`?
 
-Yes, but only on the long-lived mailbox project-reuse path: the original claim must include a non-empty `project_key`, and the callback must keep the same `caller_id / task_id`. In that case, `success` returns the mailbox to `available`, blocks the same project by recorded success history, and allows immediate reuse by other projects. Claims without `project_key` and temp-mail paths still end in `used`.
+Yes, but only on the long-lived mailbox project-reuse path: the original claim must include a non-empty `project_key`, and the callback must keep the same `caller_id / task_id`. In that case, `success` returns the mailbox to `available`, blocks the same project by recorded success history, and allows immediate reuse by other projects. Claims without `project_key` still end in `used`.
 
 ### Q5: Why does `no_available_account` still use HTTP 200?
 
@@ -628,7 +624,6 @@ If you still use older scripts, migrate as follows:
 3. add mail-reading calls to the registration flow:
    `verification-code` / `verification-link` / `wait-message`
 4. explicitly handle `403`, `429`, and `no_available_account`
-5. if you need CF temp mail from pool, send `provider=cloudflare_temp_mail` in `claim-random`
 
 ---
 

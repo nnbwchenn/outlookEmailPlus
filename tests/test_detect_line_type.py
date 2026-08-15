@@ -130,12 +130,10 @@ class TestDetectLineType(unittest.TestCase):
         r = self._detect("user@corp.com----pwd")
         self.assertEqual(r["type"], "error")
 
-    # --- 1 段：临时邮箱 ---
-    def test_temp_mail_1_part(self):
+    # --- 1 段：不再是临时邮箱，视为无法解析 ---
+    def test_1_part_email_is_unrecognized_without_credentials(self):
         r = self._detect("temp@temp.example")
-        self.assertEqual(r["type"], "temp_mail")
-        self.assertEqual(r["provider"], "temp_mail")
-        self.assertEqual(r["fields"]["email"], "temp@temp.example")
+        self.assertEqual(r["type"], "error")
 
     def test_1_part_invalid_email(self):
         r = self._detect("not-an-email")

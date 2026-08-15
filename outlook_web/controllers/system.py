@@ -85,20 +85,6 @@ def api_bootstrap() -> Any:
     )
 
 
-@login_required
-def api_reload_plugins() -> Any:
-    from outlook_web.services.temp_mail_provider_factory import reload_plugins
-
-    return jsonify(
-        {
-            "success": True,
-            "code": "OK",
-            "message": "插件刷新完成",
-            "data": reload_plugins(),
-        }
-    )
-
-
 # ==================== 系统 API ====================
 
 

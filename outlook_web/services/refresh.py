@@ -23,9 +23,8 @@ def build_refreshable_outlook_account_where(
     column: str = "account_type",
     provider_column: str = "provider",
 ) -> str:
-    """构造 Outlook-only 刷新规则，兼容历史空 account_type 数据。
-    排除 provider=cloudflare_temp_mail（CF pool 账号无 OAuth token，不应进入刷新链路）。"""
-    return f"({column} = 'outlook' OR {column} IS NULL) AND ({provider_column} != 'cloudflare_temp_mail' OR {provider_column} IS NULL)"
+    """构造 Outlook-only 刷新规则，兼容历史空 account_type 数据。"""
+    return f"({column} = 'outlook' OR {column} IS NULL)"
 
 
 REFRESHABLE_OUTLOOK_ACCOUNT_WHERE = build_refreshable_outlook_account_where()
@@ -42,11 +41,7 @@ def is_refreshable_outlook_account(
     *,
     provider: Optional[str] = None,
 ) -> bool:
-    """仅 Outlook（以及历史空 account_type）允许进入 OAuth token 刷新链路。
-    排除 provider=cloudflare_temp_mail（CF pool 账号无 OAuth token）。"""
-    # CF pool 账号永远不应进入刷新链路
-    if provider and str(provider).strip() == "cloudflare_temp_mail":
-        return False
+    """仅 Outlook（以及历史空 account_type）允许进入 OAuth token 刷新链路。"""
     if account_type is None:
         return True
     return isinstance(account_type, str) and account_type.strip().lower() == "outlook"

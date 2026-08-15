@@ -10,7 +10,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Optional
 
@@ -28,15 +27,8 @@ DETAIL_MAX_LEN = 512
 
 VALID_RESULTS = set(pool_repo.RESULT_TO_POOL_STATUS.keys())
 
-# CF 邮箱 complete 时需要删除远程邮箱的 result 值
-CF_DELETE_ON_RESULTS = {"success", "credential_invalid"}
-
 # 支持的 provider 白名单（空字符串视为 None，不做校验）
-VALID_PROVIDERS = {"outlook", "imap", "custom", "gptmail", "cloudflare_temp_mail"}
-
-# 这些 provider（含未指定）在 accounts 池无命中时，回退到 temp_emails 临时邮箱池领取。
-# custom/gptmail 对应「通用 API (GPTMail)」临时邮箱；None 表示不限 provider。
-_TEMP_ELIGIBLE_PROVIDERS = {None, "custom", "gptmail"}
+VALID_PROVIDERS = {"outlook", "imap", "custom"}
 
 
 def _validate_provider(provider: Optional[str]) -> Optional[str]:
@@ -129,22 +121,13 @@ def _read_settings_via_conn(conn) -> dict:
 
 def _is_project_reuse_eligible_account(
     *,
-    provider: Optional[str],
-    account_type: Optional[str],
     claimed_project_key: Optional[str],
 ) -> bool:
     """判定账号是否适用项目维度成功复用路径 (FD §2.1)。
 
-    三重门控缺一不可：
-    1. claimed_project_key 非空 — 必须在 claim 时显式传入
-    2. 非 cloudflare_temp_mail — CF 临时邮箱不在本期覆盖范围
-    3. 非 temp_mail — 一次性临时邮箱不在本期覆盖范围
+    门控：claimed_project_key 非空 — 必须在 claim 时显式传入
     """
     if not claimed_project_key:
-        return False
-    if (provider or "").strip() == "cloudflare_temp_mail":
-        return False
-    if (account_type or "").strip() == "temp_mail":
         return False
     return True
 
@@ -186,47 +169,6 @@ def claim_random(
         if account is not None:
             return account
 
-        # accounts 池无命中：对临时邮箱类 provider（custom/gptmail/未指定）回退到 temp_emails 池领取
-        if provider in _TEMP_ELIGIBLE_PROVIDERS:
-            try:
-                temp_account = pool_repo.claim_temp_mailbox_atomic(
-                    conn,
-                    caller_id=caller_id,
-                    task_id=task_id,
-                    lease_seconds=default_lease,
-                    email_domain=email_domain,
-                )
-            except pool_repo.PoolRepositoryError as e:
-                raise PoolServiceError(str(e), e.error_code, http_status=500) from e
-            if temp_account is not None:
-                return temp_account
-
-        # 池为空：仅当显式指定 provider=cloudflare_temp_mail 时，动态创建 CF 临时邮箱
-        if provider == "cloudflare_temp_mail":
-            created_email, created_meta = _create_cf_mailbox_for_pool(email_domain=email_domain)
-
-            try:
-                inserted = pool_repo.insert_claimed_account(
-                    conn,
-                    email=created_email,
-                    caller_id=caller_id,
-                    task_id=task_id,
-                    lease_seconds=default_lease,
-                    provider="cloudflare_temp_mail",
-                    account_type="temp_mail",
-                    project_key=project_key,
-                    temp_mail_meta=created_meta,
-                    claim_log_detail="CF邮箱动态创建",
-                )
-                return inserted
-            except pool_repo.PoolRepositoryError as e:
-                # DB 写入失败时，尽力删除已创建的远程邮箱，避免资源泄漏（非阻塞）
-                _delete_cf_mailbox_nonblocking(email=created_email, meta=created_meta)
-                raise PoolServiceError(str(e), e.error_code, http_status=500) from e
-            except Exception as e:
-                _delete_cf_mailbox_nonblocking(email=created_email, meta=created_meta)
-                raise PoolServiceError("动态写入 CF 邮箱失败", "db_error", http_status=500) from e
-
         raise PoolServiceError("池中没有符合条件的可用邮箱", "no_available_account", http_status=200)
     finally:
         conn.close()
@@ -240,7 +182,7 @@ def _validate_claim_ownership(
     caller_id: str,
     task_id: str,
 ) -> None:
-    """校验 release/complete 的领取归属（accounts 与 temp_emails 共用）。"""
+    """校验 release/complete 的领取归属。"""
     if row is None:
         raise PoolServiceError("账号不存在", "account_not_found", http_status=400)
     if row.get("pool_status") != "claimed":
@@ -277,16 +219,6 @@ def release_claim(
 
     conn = create_sqlite_connection()
     try:
-        # 临时邮箱池账号：account_id 带偏移，路由到 temp_emails
-        if pool_repo.is_temp_pool_account_id(account_id):
-            temp_id = pool_repo.temp_id_from_account_id(account_id)
-            temp_row = pool_repo.get_temp_mailbox_pool_row(conn, temp_id)
-            _validate_claim_ownership(
-                temp_row, action="release", claim_token=claim_token, caller_id=caller_id, task_id=task_id
-            )
-            pool_repo.release_temp_mailbox(conn, temp_id, claim_token, caller_id, task_id, reason)
-            return
-
         row = conn.execute(
             "SELECT id, claim_token, claimed_by, pool_status FROM accounts WHERE id = ?",
             (account_id,),
@@ -332,18 +264,9 @@ def complete_claim(
 
     conn = create_sqlite_connection()
     try:
-        # 临时邮箱池账号：account_id 带偏移，路由到 temp_emails（一次性资源，无项目复用/CF 删除）
-        if pool_repo.is_temp_pool_account_id(account_id):
-            temp_id = pool_repo.temp_id_from_account_id(account_id)
-            temp_row = pool_repo.get_temp_mailbox_pool_row(conn, temp_id)
-            _validate_claim_ownership(
-                temp_row, action="complete", claim_token=claim_token, caller_id=caller_id, task_id=task_id
-            )
-            return pool_repo.complete_temp_mailbox(conn, temp_id, claim_token, caller_id, task_id, result, detail)
-
         row = conn.execute(
             """
-            SELECT id, email, provider, account_type, temp_mail_meta,
+            SELECT id, email, provider, account_type,
                    claimed_project_key,
                    claim_token, claimed_by, pool_status
             FROM accounts
@@ -363,12 +286,10 @@ def complete_claim(
         # 保证 claim-complete 即使未传 project_key 也能正确判定复用路径（TDD §4.1 N-03）
         claimed_project_key = str(row["claimed_project_key"] or "").strip() or None
         enable_project_reuse = _is_project_reuse_eligible_account(
-            provider=row["provider"],
-            account_type=row["account_type"],
             claimed_project_key=claimed_project_key,
         )
 
-        # complete 先更新本地状态（事务内），再做 CF 删除（非阻塞）
+        # complete 先更新本地状态（事务内）
         new_status = pool_repo.complete(
             conn,
             account_id,
@@ -381,75 +302,9 @@ def complete_claim(
             enable_project_reuse=enable_project_reuse,
         )
 
-        if (row["provider"] or "").strip() == "cloudflare_temp_mail" and result in CF_DELETE_ON_RESULTS:
-            meta_str = row["temp_mail_meta"]
-            meta_obj = {}
-            if isinstance(meta_str, str) and meta_str.strip():
-                try:
-                    meta_obj = json.loads(meta_str)
-                except Exception:
-                    meta_obj = {}
-            _delete_cf_mailbox_nonblocking(email=row["email"], meta=meta_obj)
-
         return new_status
     finally:
         conn.close()
-
-
-def _create_cf_mailbox_for_pool(*, email_domain: Optional[str]) -> tuple[str, dict]:
-    """调用 CF Worker 创建邮箱（Service 层），返回 (email, meta_dict)。"""
-    try:
-        from outlook_web.services.temp_mail_provider_cf import (
-            CloudflareTempMailProvider,
-        )
-
-        provider = CloudflareTempMailProvider()
-        result = provider.create_mailbox(prefix=None, domain=email_domain)
-    except Exception as e:
-        # 上游异常：统一映射为 UPSTREAM_SERVER_ERROR
-        logger.warning("[pool] CF create_mailbox exception: %s", e)
-        raise PoolServiceError("CF Worker 创建邮箱异常", "UPSTREAM_SERVER_ERROR", http_status=500) from e
-
-    if not isinstance(result, dict):
-        raise PoolServiceError("CF Worker 返回格式错误", "UPSTREAM_BAD_PAYLOAD", http_status=500)
-
-    if not result.get("success"):
-        error_code = str(result.get("error_code") or "UPSTREAM_SERVER_ERROR")
-        error_msg = str(result.get("error") or "CF Worker 创建邮箱失败")
-        raise PoolServiceError(error_msg, error_code, http_status=500)
-
-    email = str(result.get("email") or "").strip()
-    if not email:
-        raise PoolServiceError("CF Worker 未返回邮箱地址", "UPSTREAM_BAD_PAYLOAD", http_status=500)
-
-    meta = result.get("meta") or {}
-    if isinstance(meta, str):
-        try:
-            meta = json.loads(meta)
-        except Exception:
-            meta = {}
-
-    if not isinstance(meta, dict):
-        meta = {}
-
-    return email, meta
-
-
-def _delete_cf_mailbox_nonblocking(*, email: str, meta: dict) -> None:
-    """非阻塞删除远程 CF 邮箱（仅记录日志，不抛异常）。"""
-    try:
-        from outlook_web.services.temp_mail_provider_cf import (
-            CloudflareTempMailProvider,
-        )
-
-        provider = CloudflareTempMailProvider()
-        success = provider.delete_mailbox({"email": email, "meta": meta})
-        if success:
-            logger.info("[pool] 已删除 CF 远程邮箱: %s", email)
-        else:
-            logger.warning("[pool] 删除 CF 远程邮箱失败(返回 False): %s", email)
-    except Exception as e:
-        logger.warning("[pool] 删除 CF 远程邮箱异常: %s, error=%s", email, e)
 
 
 def get_claim_context(*, claim_token: str) -> Optional[dict]:
@@ -478,9 +333,6 @@ def append_claim_read_context(
     追加一条读取上下文日志（claim 邮箱被用于邮件读取时记录）。
     """
     if not claim_token or not claim_token.strip():
-        return
-    # 临时邮箱池账号不写 account_claim_logs（该表 account_id 对 accounts 有外键约束）
-    if pool_repo.is_temp_pool_account_id(account_id):
         return
     conn = create_sqlite_connection()
     try:

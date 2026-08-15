@@ -33,7 +33,6 @@ def _channel_label(channel: str) -> str:
         "graph_junk": "Graph Junk",
         "imap_new": "IMAP New",
         "imap_old": "IMAP Old",
-        "temp_mail": "Temp Mail",
         "ai_fallback": "AI Fallback",
         "graph_delta": "Graph",
         "imap_ssl": "IMAP",
@@ -145,16 +144,6 @@ def get_overview_summary(conn: sqlite3.Connection | None = None) -> Dict[str, An
         """,
         (today_start,),
     ).fetchone()
-    today_messages = db.execute("""
-        SELECT COUNT(*) AS message_count
-        FROM temp_email_messages
-        WHERE datetime(created_at) >= datetime('now', 'start of day')
-        """).fetchone()
-    temp_mail_active = db.execute("""
-        SELECT COUNT(*) AS active_count
-        FROM temp_emails
-        WHERE COALESCE(status, 'active') = 'active'
-        """).fetchone()
 
     return {
         "account_status": account_status,
@@ -170,9 +159,7 @@ def get_overview_summary(conn: sqlite3.Connection | None = None) -> Dict[str, An
             ),
         },
         "kpi": {
-            "emails_received": int(today_messages["message_count"] or 0) if today_messages else 0,
             "verification_extracted": int(today_logs["verification_count"] or 0) if today_logs else 0,
-            "temp_emails_active": int(temp_mail_active["active_count"] or 0) if temp_mail_active else 0,
         },
     }
 
@@ -240,15 +227,13 @@ def get_verification_stats(
         )
     channel_stats.sort(key=lambda item: (-int(item["count"]), item["channel"]))
 
-    # account_id > 0 对应 accounts 表，< 0 对应 temp_emails 表（取反编码，见 encode_temp_mail_log_account_id）
     recent_rows = db.execute(
         """
         SELECT vel.id, vel.started_at, vel.channel, vel.code_found, vel.duration_ms,
                vel.result_type, vel.used_ai, vel.error_code,
-               COALESCE(a.email, tm.email, '') AS account_email
+               COALESCE(a.email, '') AS account_email
         FROM verification_extract_logs AS vel
         LEFT JOIN accounts AS a ON vel.account_id > 0 AND a.id = vel.account_id
-        LEFT JOIN temp_emails AS tm ON vel.account_id < 0 AND tm.id = -vel.account_id
         ORDER BY vel.started_at DESC, vel.id DESC
         LIMIT ?
         """,

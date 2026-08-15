@@ -78,10 +78,9 @@ def _build_body_excerpt(message: dict[str, Any]) -> str:
 
 
 def build_business_webhook_text(source: dict[str, Any], message: dict[str, Any]) -> str:
-    source_type_text = "普通邮箱" if source.get("source_type") == "account" else "临时邮箱"
     return (
         f"来源邮箱: {_stringify(source.get('label') or source.get('email'))}\n"
-        f"来源类型: {source_type_text}\n"
+        f"来源类型: 普通邮箱\n"
         f"文件夹: {_stringify(message.get('folder'), default='inbox')}\n"
         f"发件人: {_stringify(message.get('sender'))}\n"
         f"主题: {_stringify(message.get('subject'), default='无主题')}\n"

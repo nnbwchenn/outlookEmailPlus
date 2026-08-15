@@ -1,34 +1,3 @@
-<!-- 插件自定义安装模态框 -->
-    <div class="modal" id="pluginCustomInstallModal"
-         onclick="if(event.target===this) PluginManager.closeCustomInstallModal()"
-         style="display:none;position:fixed;inset:0;background:rgba(44,24,16,0.45);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;">
-        <div class="modal-content" style="max-width:480px;width:90%;animation:fadeSlideDown 0.22s ease;">
-            <div class="modal-header">
-                <h3>自定义安装插件</h3>
-                <button class="modal-close" onclick="PluginManager.closeCustomInstallModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">插件名称 <span style="color:var(--clr-danger);">*</span></label>
-                    <input type="text" class="form-input" id="customPluginName" placeholder="例如：moemail">
-                    <div class="form-hint">将作为插件文件名（.py）和 provider 名称，建议使用小写字母+下划线。</div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">下载地址 <span style="color:var(--clr-danger);">*</span></label>
-                    <input type="url" class="form-input" id="customPluginUrl" placeholder="https://raw.githubusercontent.com/xxx/plugin.py">
-                    <div class="form-hint">粘贴插件 .py 文件的原始下载地址（GitHub raw / Gitee / 自建服务器）。</div>
-                </div>
-                <div style="padding:0.7rem 0.9rem;background:rgba(192,57,43,0.05);border:1px solid rgba(192,57,43,0.2);border-radius:6px;font-size:0.78rem;color:var(--clr-danger);">
-                    ⚠️ 插件代码将直接在服务器上执行，请仅安装来自可信来源的插件。
-                </div>
-            </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:0.5rem;">
-                <button class="btn btn-sm" onclick="PluginManager.closeCustomInstallModal()">取消</button>
-                <button class="btn btn-sm btn-primary" onclick="PluginManager.customInstall()">安装</button>
-            </div>
-        </div>
-    </div>
-
 <!-- 添加分组模态框 -->
     <div class="modal" id="addGroupModal" onclick="if(event.target === this) hideAddGroupModal()">
         <div class="modal-content">

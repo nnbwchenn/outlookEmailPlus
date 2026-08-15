@@ -116,11 +116,11 @@ class PoolServiceProjectReuseTests(unittest.TestCase):
 
         self.assertEqual(new_status, "used")
 
-    def test_complete_claim_cloudflare_temp_mail_stays_on_old_semantics(self):
+    def test_complete_claim_with_project_key_enables_project_reuse_regardless_of_provider(self):
         account_id = self._insert_claimed_account(
             email="svc-cf@example.com",
-            provider="cloudflare_temp_mail",
-            account_type="temp_mail",
+            provider="custom",
+            account_type="imap",
             claim_token="clm_svc_cf",
             claimed_by="svc_bot:task_3",
             claimed_project_key="project_cf",
@@ -137,7 +137,7 @@ class PoolServiceProjectReuseTests(unittest.TestCase):
                 result="success",
             )
 
-        self.assertEqual(new_status, "used")
+        self.assertEqual(new_status, "available")
 
     def test_claim_random_blank_project_key_treated_as_old_behavior(self):
         with self.app.app_context():

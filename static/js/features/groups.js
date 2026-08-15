@@ -12,12 +12,6 @@
                 if (data.success) {
                     groups = data.groups;
 
-                    // 找到临时邮箱分组
-                    const tempGroup = groups.find(g => g.name === '临时邮箱');
-                    if (tempGroup) {
-                        tempEmailGroupId = tempGroup.id;
-                    }
-
                     renderGroupList(data.groups);
                     if (typeof renderCompactGroupStrip === 'function') {
                         renderCompactGroupStrip(data.groups, currentGroupId);
@@ -28,18 +22,10 @@
                     if (currentGroupId) {
                         const group = groups.find(g => g.id === currentGroupId);
                         if (group) {
-                            // 刷新当前分组的邮箱列表
-                            if (currentGroupId === tempEmailGroupId) {
-                                loadTempEmails(true);
-                            } else {
-                                await loadAccountsByGroup(currentGroupId, true);
-                            }
+                            await loadAccountsByGroup(currentGroupId, true);
                         }
-                    } else if (currentPage !== 'temp-emails') {
-                        // BUG-06 防御：在临时邮箱页面时，不自动选组。
-                        // 自动选组会调用 selectGroup()，进而清空 currentAccount，
-                        // 导致用户在临时邮箱页选中的邮箱被意外重置。
-                        // 仅在其他页面（mailbox/dashboard 等）才执行首次自动选组。
+                    } else {
+                        // 首次进入时自动选中第一个分组
                         const firstNormalGroup = groups.find(g => !isTempMailboxGroup(g));
                         if (firstNormalGroup) {
                             selectGroup(firstNormalGroup.id);
@@ -121,9 +107,7 @@
             const methodTag = document.getElementById('methodTag');
             if (methodTag) methodTag.style.display = 'none';
 
-            // 检查是否是临时邮箱分组
             const group = groups.find(g => g.id === groupId);
-            isTempEmailGroup = Boolean(group && isTempMailboxGroup(group));
 
             // 更新分组列表 UI
             document.querySelectorAll('.group-item').forEach(item => {
@@ -148,15 +132,8 @@
             // 更新底部按钮
             updateAccountPanelFooter();
 
-            // 加载该分组的邮箱
-            if (isTempEmailGroup) {
-                // 临时邮箱已有独立页面，跳转到专属页面管理
-                navigate('temp-emails');
-                return;
-            } else {
-                // 切换分组：加载账号列表（不启动批量轮询）
-                await loadAccountsByGroup(groupId);
-            }
+            // 切换分组：加载账号列表（不启动批量轮询）
+            await loadAccountsByGroup(groupId);
         }
 
         // 更新账号面板底部按钮（新布局无独立footer，通过topbar按钮实现）
@@ -231,8 +208,7 @@
                 '126': '126 邮箱',
                 yahoo: 'Yahoo 邮箱',
                 aliyun: '阿里邮箱',
-                custom: '自定义 IMAP',
-                cloudflare_temp_mail: 'CF 临时邮箱'
+                custom: '自定义 IMAP'
             };
             return translateAppTextLocal(labels[key] || provider || '未知');
         }
@@ -285,7 +261,6 @@
                 const notificationEnabled = acc.notification_enabled !== undefined
                     ? !!acc.notification_enabled
                     : !!acc.telegram_push_enabled;
-                const isCfPoolAccount = String(acc.provider || '').toLowerCase() === 'cloudflare_temp_mail';
 
                 let tokenBadge = `<span class="badge badge-gray">IMAP</span>`;
                 if (supportsTokenRefresh) {
@@ -334,14 +309,8 @@
                             <button class="btn-icon ${notificationEnabled ? 'tg-push-active' : ''}" onclick="event.stopPropagation(); toggleTelegramPush(${acc.id}, ${!notificationEnabled})" title="${escapeHtml(translateAppTextLocal(notificationEnabled ? '该邮箱通知参与（已开启）' : '开启该邮箱通知参与'))}">🔔</button>
                             <button class="btn btn-sm btn-accent" onclick="event.stopPropagation(); copyVerificationInfo('${escapeJs(acc.email)}', this)" title="${escapeHtml(translateAppTextLocal('验证码'))}" style="font-size:0.72rem;padding:2px 8px;">🔑 ${escapeHtml(translateAppTextLocal('验证码'))}</button>
                             <button class="btn-icon" onclick="event.stopPropagation(); copyEmail('${escapeJs(acc.email)}')" title="${escapeHtml(translateAppTextLocal('复制'))}">📋</button>
-                            ${isCfPoolAccount
-                                ? `<button class="btn-icon" disabled title="${escapeHtml(translateAppTextLocal('邮箱池管理的账号不支持编辑'))}" style="opacity:0.3;cursor:not-allowed;">✏️</button>`
-                                : `<button class="btn-icon" onclick="event.stopPropagation(); showEditAccountModal(${acc.id})" title="${escapeHtml(translateAppTextLocal('编辑'))}">✏️</button>`
-                            }
-                            ${isCfPoolAccount
-                                ? `<button class="btn-icon" disabled title="${escapeHtml(translateAppTextLocal('邮箱池管理的账号不支持手动删除'))}" style="opacity:0.3;cursor:not-allowed;color:var(--clr-danger);">🗑️</button>`
-                                : `<button class="btn-icon" onclick="event.stopPropagation(); deleteAccount(${acc.id}, '${escapeJs(acc.email)}')" title="${escapeHtml(translateAppTextLocal('删除'))}" style="color:var(--clr-danger);">🗑️</button>`
-                            }
+                            <button class="btn-icon" onclick="event.stopPropagation(); showEditAccountModal(${acc.id})" title="${escapeHtml(translateAppTextLocal('编辑'))}">✏️</button>
+                            <button class="btn-icon" onclick="event.stopPropagation(); deleteAccount(${acc.id}, '${escapeJs(acc.email)}')" title="${escapeHtml(translateAppTextLocal('删除'))}" style="color:var(--clr-danger);">🗑️</button>
                         </div>
                     </div>
                 </div>
@@ -544,10 +513,7 @@
                 const select = document.getElementById(selectId);
                 if (select) {
                     const currentValue = select.value;
-                    // 过滤掉临时邮箱分组（导入邮箱时不能选择临时邮箱分组）
-                    const filteredGroups = selectId === 'importGroupSelect'
-                        ? groups.filter(g => g.name !== '临时邮箱')
-                        : groups;
+                    const filteredGroups = groups;
 
                     select.innerHTML = filteredGroups.map(g =>
                         `<option value="${g.id}">${escapeHtml(g.name)}</option>`
@@ -864,12 +830,8 @@
         const verificationCopyInFlight = new Set();
 
         function buildVerificationExtractEndpoint(email, options = {}) {
-            const normalizedSource = String(options?.source || '').trim().toLowerCase();
             const field = String(options?.field || 'any').trim().toLowerCase();
             const query = field && field !== 'any' ? `?field=${encodeURIComponent(field)}` : '';
-            if (normalizedSource === 'temp' || normalizedSource === 'temp-mail' || normalizedSource === 'temp_mail') {
-                return `/api/temp-emails/${encodeURIComponent(email)}/verification${query}`;
-            }
             return `/api/emails/${encodeURIComponent(email)}/verification${query}`;
         }
 

@@ -131,10 +131,10 @@ class TestUIRedesignBugFixes(unittest.TestCase):
     # ==================== BUG-006: 卡片颜色 ====================
 
     def test_bug006_card_color_array_exists(self):
-        """BUG-006: 临时邮箱渲染应有多种颜色"""
+        """BUG-006: 邮箱卡片渲染应有多种颜色"""
         client = self._get_client()
-        _, js = self._get_text(client, "/static/js/features/temp_emails.js")
-        self.assertIn("renderTempEmailList", js)
+        _, js = self._get_text(client, "/static/js/features/groups.js")
+        self.assertIn("avatarGradients", js)
 
     # ==================== BUG-010: 仪表盘 ====================
 
@@ -146,7 +146,6 @@ class TestUIRedesignBugFixes(unittest.TestCase):
             "statTotalAccounts",
             "statValidTokens",
             "statExpiredTokens",
-            "statTempEmails",
         ]:
             self.assertIn(f'id="{el_id}"', html, f"仪表盘应包含 #{el_id} 元素")
 
@@ -182,7 +181,6 @@ class TestUIRedesignBugFixes(unittest.TestCase):
         pages = [
             "page-dashboard",
             "page-mailbox",
-            "page-temp-emails",
             "page-refresh-log",
             "page-settings",
             "page-audit",
@@ -197,7 +195,6 @@ class TestUIRedesignBugFixes(unittest.TestCase):
         nav_pages = [
             "dashboard",
             "mailbox",
-            "temp-emails",
             "refresh-log",
             "settings",
             "audit",
@@ -223,7 +220,8 @@ class TestUIRedesignBugFixes(unittest.TestCase):
             "/static/js/features/groups.js",
             "/static/js/features/accounts.js",
             "/static/js/features/emails.js",
-            "/static/js/features/temp_emails.js",
+            "/static/js/features/overview.js",
+            "/static/js/features/pool_admin.js",
         ]
         for js_path in js_files:
             status_code, js = self._get_text(client, js_path)

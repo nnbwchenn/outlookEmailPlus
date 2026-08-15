@@ -101,8 +101,6 @@ PROVIDER_GROUP_NAME: Dict[str, str] = {
     "yahoo": "Yahoo",
     "aliyun": "阿里云邮箱",
     "custom": "自定义IMAP",
-    "temp_mail": "临时邮箱",
-    "gptmail": "临时邮箱",
 }
 
 # FD-00006: 已知 provider key 集合（用于 3 段格式校验）

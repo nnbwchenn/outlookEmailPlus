@@ -10,8 +10,8 @@ OutlookMail Plus 是一款面向个人与团队的注册邮箱管理器。
 
 - **专为注册而生**：尽量减少注册流程中不必要的操作。你可以一键复制邮箱地址；在注册页发送验证邮件后，回到管理器点击“验证码”，即可自动拉取最新验证邮件，并用正则快速提取验证码或验证链接，尽量减少等待。
 - **更轻、更专注**：舍弃发件等非核心能力，界面更清爽，所有设计都围绕“把注册跑通”。
-- **导入兼容更广**：支持主流邮箱导入（Gmail、QQ、163 等），也支持自定义 IMAP 服务器。即使是自建邮箱也能使用；内置 CF Worker 临时邮箱，支持多域配置与 Admin Key 加密，大幅降低注册场景的隐私泄露风险。
-- **支持自动化**：对外提供接口，支持批量自动化注册流程；邮箱池支持 `project_key` 项目隔离领取。对于长期邮箱，在领取阶段显式传入 `project_key + caller_id + task_id` 时，同项目成功账号不会被重复分配，`claim-complete(result=success)` 后会直接回到 `available`，并可被其他项目立即复用；临时邮箱 / `cloudflare_temp_mail` 继续沿用旧语义。获取接码与释放邮箱等能力一应俱全。
+- **导入兼容更广**：支持主流邮箱导入（Gmail、QQ、163 等），也支持自定义 IMAP 服务器。即使是自建邮箱也能使用。
+- **支持自动化**：对外提供接口，支持批量自动化注册流程；邮箱池支持 `project_key` 项目隔离领取。对于长期邮箱，在领取阶段显式传入 `project_key + caller_id + task_id` 时，同项目成功账号不会被重复分配，`claim-complete(result=success)` 后会直接回到 `available`，并可被其他项目立即复用。获取接码与释放邮箱等能力一应俱全。
 - **第三方通知**：支持第三方渠道通知，当前已接入 Telegram；重点邮箱收到邮件可自动推送提醒。
 
 简而言之，OutlookMail Plus 是一款为“注册流程”打造的邮箱管理器。
@@ -46,7 +46,7 @@ OutlookMail Plus 是一款面向个人与团队的注册邮箱管理器。
 
 | 版本 | 日期 | 核心新功能 |
 |------|------|-----------|
-| **v2.2.0** | 2026-04 | 🔌 **临时邮箱 Provider 插件化**：支持第三方插件动态安装/卸载/配置，内置 Cloudflare / Custom / GPTMail / Moemail，Provider 设置与域名选择解耦；浏览器扩展新增本地个人信息生成器与完整 Jest 测试覆盖 |
+| **v2.2.0** | 2026-04 | 🔌 临时邮箱 Provider 插件化与临时邮箱能力（该功能已移除）；浏览器扩展新增本地个人信息生成器与完整 Jest 测试覆盖 |
 | **v2.1.0** | 2026-04 | 📊 **数据概览大盘**：5 Tab 统一看板（总览 / 验证码提取 / 对外 API / 邮箱池 / 系统活动），新增 `verification_extract_logs` 统一观测链路，并修复浏览器扩展 API Key 复制与 overview i18n/实时刷新问题 |
 | **v2.0.0** | 2026-04 | 🌐 **浏览器扩展**（Chrome/Edge MV3）：一键申领邮箱 → 自动提取验证码/链接 → 完成/释放，无需切换标签页；后端新增 `chrome-extension://` CORS 跨域支持 |
 | **v1.19.0** | 2026-04 | 🔧 刷新失败提示结构化增强（错误码 + 可执行步骤 + trace 反馈指引）；Selected 账号刷新提前失败修复（Issue #45） |
@@ -63,7 +63,7 @@ OutlookMail Plus 是一款面向个人与团队的注册邮箱管理器。
 ### v2.1.0 — 数据概览大盘与观测增强
 
 - 新增 5 Tab 数据概览大盘，替换旧 dashboard
-- 新增 `verification_extract_logs`，统一观测普通账号 / 临时邮箱 / external API 提取链路
+- 新增 `verification_extract_logs`，统一观测普通账号 / external API 提取链路
 - 修复浏览器扩展“API 无效”的真实根因：复制脱敏 API Key 与 external pool / pool_access 前置条件认知偏差
 - overview 前端补齐实时重拉与完整 i18n，页头 / Tab / hover note / timeline 现与主体卡片保持一致
 
@@ -95,21 +95,19 @@ OutlookMail Plus 是一款面向个人与团队的注册邮箱管理器。
 ### v1.11.0 — 邮箱池 & 前端增强
 
 - **邮箱池项目隔离**：`project_key` 防止同项目重复领取（DB v17）
-- **CF Worker 临时邮箱多域支持**：设置页配置多个域名，"同步域名"按钮一键刷新
-- **Admin Key 加密存储**：`cf_worker_admin_key` 以 `enc:` 前缀加密写入数据库（DB v18）
 - **账号列表前端分页**：每页 50 条，大量账号时列表加载更流畅
 - **统一轮询引擎**：标准模式与简洁模式合并为单一 `poll-engine`，修复竞态与状态积压
 
 ## 核心能力
 
 - 多邮箱账号管理
-  支持 Outlook OAuth、普通 IMAP 邮箱和 CF Worker 临时邮箱（多域配置，Admin Key 加密存储）
+  支持 Outlook OAuth、普通 IMAP 邮箱
 - 批量导入与分组整理
   支持批量导入、标签、搜索、分组、导出
 - 邮件读取与提取
   支持验证码、链接、原文内容读取
 - 邮箱池调度
-  支持可领取、释放、完成、冷却恢复、过期回收等状态流转；长期邮箱支持 `project_key` 项目维度成功复用：同项目按 success 记录防重复领取，`success` 后回到 `available`，跨项目可立即复用；未传 `project_key` 与 `provider=cloudflare_temp_mail` / 临时邮箱继续保持旧语义；`claim-random` 仍支持池空时动态创建 CF 邮箱
+  支持可领取、释放、完成、冷却恢复、过期回收等状态流转；长期邮箱支持 `project_key` 项目维度成功复用：同项目按 success 记录防重复领取，`success` 后回到 `available`，跨项目可立即复用
 - 受控对外接口
   支持 `X-API-Key` 鉴权、多调用方 Key 管理、邮箱范围授权、IP 白名单和速率限制
 - 通知能力
@@ -227,7 +225,6 @@ networks:
 - `no healthy upstream` 表示反向代理当前没有健康后端，不等于应用一定是“代码崩溃”；更新后若持续出现，优先查看**新容器启动日志**与平台事件
 - 若平台事件出现 `Stopping container`、`FailedKillPod`、`KillPodSandbox DeadlineExceeded`，说明故障至少包含平台侧 Pod 停止/回收异常，不能只根据应用日志下结论
 - 本项目默认使用 SQLite + 持久卷，更新时建议保持**单实例**；若新旧实例短时并发访问同一数据库文件，启动阶段的迁移或文件锁等待可能导致健康检查超时
-- `TEMP_EMAIL_UPSTREAM_READ_FAILED` 与 `no healthy upstream` 需要分开理解：前者是临时邮箱上游读取失败，后者是入口层前面没有健康应用实例
 
 ### 本地运行
 
@@ -269,14 +266,6 @@ python -m unittest discover -s tests -v
   后端环境变量默认 Scope（fallback），默认 `offline_access https://outlook.office.com/IMAP.AccessAsUser.All`；前端首次展示默认 Graph 预设
 - `OAUTH_TENANT`
   Token 工具默认 Tenant，固定兼容模式 `consumers`
-- `GPTMAIL_BASE_URL`
-  GPTMail 服务地址
-- `GPTMAIL_API_KEY`
-  GPTMail API Key，用于临时邮箱能力
-- `CF_WORKER_BASE_URL`（设置页对应 `cf_worker_base_url`）
-  Cloudflare Temp Email Worker 地址
-- `CF_WORKER_ADMIN_KEY`（设置页对应 `cf_worker_admin_key`）
-  Cloudflare Worker Admin 密码；建议仅通过设置页保存，系统会加密存储
 
 ### 一键更新相关
 
@@ -295,7 +284,7 @@ python -m unittest discover -s tests -v
 
 ### 邮件通知
 
-如果你准备启用“邮件通知”，需要额外配置 SMTP。邮件通知与 Telegram、GPTMail 是独立链路，不能互相替代。
+如果你准备启用“邮件通知”，需要额外配置 SMTP。邮件通知与 Telegram 是独立链路，不能互相替代。
 
 最少需要配置：
 
@@ -403,12 +392,8 @@ ALLOW_LOGIN_PASSWORD_CHANGE=false
 
 - [注册与邮箱池接口文档](./注册与邮箱池接口文档.md)
 - [Registration Worker and Mail Pool API](./registration-mail-pool-api.en.md)
-- [临时邮箱 Provider 插件接入说明](./临时邮箱Provider插件接入说明.md)
-- [临时邮箱 Provider 插件接入提示词](./临时邮箱Provider插件接入提示词.md)
 
 如果你要对接注册机或批量工作流，优先看邮箱池和外部接口文档。
-
-如果你要新增一个临时邮箱 Provider 插件，优先看上面的「插件接入说明」与「插件接入提示词」。
 
 ## 致谢
 

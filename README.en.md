@@ -10,8 +10,8 @@ Unlike general-purpose email clients, it focuses on **registration and verificat
 
 - **Built for registration workflows**: it removes unnecessary steps as much as possible. You can copy mailbox addresses with one click; after sending a verification email on a signup page, you can return to the manager, click "Verification Code", fetch the latest email, and quickly extract the code or verification link with regex.
 - **Lighter and more focused**: non-core features such as sending mail are intentionally left out, so the interface stays cleaner and every design choice is centered on completing registration tasks.
-- **Broader import compatibility**: it supports mainstream mailbox providers such as Gmail, QQ, and 163, as well as custom IMAP servers. Self-hosted mailboxes also work. Built-in CF Worker temp mailboxes support multi-domain configuration and Admin Key encryption, significantly reducing privacy exposure in registration workflows.
-- **Automation-friendly**: it exposes APIs for batch registration workflows; the mail pool supports project-scoped claiming via `project_key`. For long-lived mailboxes, when `project_key + caller_id + task_id` are explicitly provided during claim, a mailbox with a recorded success in the same project will not be re-claimed, and `claim-complete(result=success)` returns it directly to `available`, allowing immediate reuse by other projects. Temp mail / `cloudflare_temp_mail` keep the legacy behavior. Mailbox claiming, verification-code retrieval, and release are all covered.
+- **Broader import compatibility**: it supports mainstream mailbox providers such as Gmail, QQ, and 163, as well as custom IMAP servers. Self-hosted mailboxes also work.
+- **Automation-friendly**: it exposes APIs for batch registration workflows; the mail pool supports project-scoped claiming via `project_key`. For long-lived mailboxes, when `project_key + caller_id + task_id` are explicitly provided during claim, a mailbox with a recorded success in the same project will not be re-claimed, and `claim-complete(result=success)` returns it directly to `available`, allowing immediate reuse by other projects. Mailbox claiming, verification-code retrieval, and release are all covered.
 - **Third-party notifications**: third-party notification channels are supported. Telegram is already integrated, and important mailboxes can push alerts automatically.
 
 In short, OutlookMail Plus is a mailbox manager designed specifically for registration workflows.
@@ -42,7 +42,7 @@ Current stable version: `v2.2.2`
 
 | Version | Date | Key New Features |
 |---------|------|-----------------|
-| **v2.2.0** | 2026-04 | 🔌 **Temp Mail Provider Plugin System**: dynamic install/unload/configure/hot-reload for third-party providers; built-in Cloudflare / Custom / GPTMail / Moemail; provider settings decoupled from domain selection; browser extension adds local personal-info generator and full Jest coverage |
+| **v2.2.0** | 2026-04 | 🔌 Temp Mail Provider Plugin System and temp-mail capabilities (this feature has been removed); browser extension adds local personal-info generator and full Jest coverage |
 | **v2.1.0** | 2026-04 | 📊 **Overview Dashboard**: a 5-tab unified board (Summary / Verification / External API / Mailbox Pool / Activity), plus `verification_extract_logs` for shared observability, browser-extension API-key copy fix, and overview real-time/i18n polish |
 | **v2.0.0** | 2026-04 | 🌐 **Browser Extension** (Chrome/Edge MV3): one-click claim → auto-extract verification code/link → complete/release, no tab-switching needed; backend adds `chrome-extension://` CORS support |
 | **v1.19.0** | 2026-04 | 🔧 Structured refresh-failure hints (error code + actionable steps + trace guide); fixed Selected account refresh early-exit (Issue #45) |
@@ -90,21 +90,19 @@ The `browser-extension/` directory contains a Chrome/Edge Manifest V3 extension.
 ### v1.11.0 — Mail Pool & Frontend Enhancements
 
 - **Mail pool project isolation**: `project_key` prevents duplicate claiming in the same project (DB v17)
-- **CF Worker multi-domain support**: configure multiple CF Worker domains in Settings; "Sync Domains" button refreshes the list in one click
-- **Admin Key encrypted at rest**: `cf_worker_admin_key` stored with `enc:` prefix (DB v18)
 - **Frontend account list pagination**: 50 accounts per page for smoother rendering
 - **Unified poll engine**: merged dual polling systems (standard + compact) into single `poll-engine`, fixing race conditions and state accumulation
 
 ## Core Capabilities
 
 - Multi-mailbox management
-  Supports Outlook OAuth, regular IMAP mailboxes, and CF Worker temp mailboxes (multi-domain configuration, Admin Key encrypted at rest)
+  Supports Outlook OAuth and regular IMAP mailboxes
 - Bulk import and organization
   Supports bulk import, tags, search, groups, and export
 - Mail reading and extraction
   Supports verification-code extraction, link extraction, and raw message viewing
 - Mail pool orchestration
-  Supports claiming, releasing, completing, cooldown recovery, and stale-claim recycling; long-lived mailboxes support project-scoped success reuse: same-project claims are blocked by recorded success history, and `success` returns the mailbox to `available` for immediate reuse by other projects; requests without `project_key` and `provider=cloudflare_temp_mail` / temp-mail accounts keep the legacy behavior
+  Supports claiming, releasing, completing, cooldown recovery, and stale-claim recycling; long-lived mailboxes support project-scoped success reuse: same-project claims are blocked by recorded success history, and `success` returns the mailbox to `available` for immediate reuse by other projects
 - Controlled external APIs
   Supports `X-API-Key` authentication, multiple consumer keys, mailbox scope restrictions, IP allowlists, and rate limits
 - Notification delivery
@@ -264,10 +262,6 @@ python -m unittest discover -s tests -v
   Backend environment default scope (fallback): `offline_access https://outlook.office.com/IMAP.AccessAsUser.All`; frontend first-render default uses Graph preset
 - `OAUTH_TENANT`
   Default tenant for the token tool, fixed to compatibility-mode `consumers`
-- `GPTMAIL_BASE_URL`
-  GPTMail service URL
-- `GPTMAIL_API_KEY`
-  GPTMail API key for temp-mail capabilities
 
 ### One-Click Update
 
@@ -286,7 +280,7 @@ python -m unittest discover -s tests -v
 
 ### Email Notifications
 
-If you want to enable business email notifications, you need to configure SMTP separately. Email notifications, Telegram, and GPTMail are independent channels and do not replace each other.
+If you want to enable business email notifications, you need to configure SMTP separately. Email notifications and Telegram are independent channels and do not replace each other.
 
 Minimum required variables:
 

@@ -70,9 +70,4 @@ def create_blueprint() -> Blueprint:
         methods=["POST"],
     )
 
-    @bp.post("/api/system/reload-plugins")
-    @login_required
-    def api_reload_plugins():
-        return system_controller.api_reload_plugins()
-
     return bp

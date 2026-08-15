@@ -71,7 +71,7 @@ class TestDomainProviderMap(unittest.TestCase):
         from outlook_web.services.providers import PROVIDER_GROUP_NAME
 
         self.assertEqual(PROVIDER_GROUP_NAME["outlook"], "Outlook")
-        self.assertEqual(PROVIDER_GROUP_NAME["temp_mail"], "临时邮箱")
+        self.assertEqual(PROVIDER_GROUP_NAME["custom"], "自定义IMAP")
 
     def test_get_provider_list_has_auto_first(self):
         from outlook_web.services.providers import get_provider_list

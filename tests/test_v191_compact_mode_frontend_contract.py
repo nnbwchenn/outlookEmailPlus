@@ -35,24 +35,16 @@ class V191CompactModeFrontendContractTests(unittest.TestCase):
         self.assertNotIn("自动模式", index_html)
         self.assertIn('id="mailboxViewModeSwitcherTemplate"', index_html)
 
-    def test_index_html_keeps_route_b_mailbox_and_temp_email_layout_contract(self):
+    def test_index_html_keeps_mailbox_layout_contract(self):
         client = self.app.test_client()
         self._login(client)
         index_html = self._get_text(client, "/")
 
         self.assertIn('id="mailboxStandardLayout"', index_html)
         self.assertIn('class="workspace workspace-mailbox"', index_html)
-        self.assertIn('class="workspace workspace-temp-emails"', index_html)
         self.assertIn('id="emailDetailSection"', index_html)
         self.assertIn('id="emailListPanel"', index_html)
         self.assertIn('id="mailboxCompactLayout"', index_html)
-
-        temp_section = re.search(r'id="page-temp-emails".*?(?=id="page-refresh-log")', index_html, re.DOTALL)
-        self.assertIsNotNone(temp_section)
-        temp_html = temp_section.group(0)
-        self.assertIn('id="tempEmailPanel"', temp_html)
-        self.assertIn('id="tempEmailMessagePanel"', temp_html)
-        self.assertNotIn('id="tempEmailDetailPanel"', temp_html)
 
         mailbox_section = re.search(r'id="mailboxStandardLayout".*?(?=id="mailboxCompactLayout")', index_html, re.DOTALL)
         self.assertIsNotNone(mailbox_section)

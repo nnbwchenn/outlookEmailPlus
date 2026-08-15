@@ -90,21 +90,6 @@ class TestExportEnhancedV2(unittest.TestCase):
             content = _build_export_text(accounts)
             self.assertIn("a@corp.com----pwd----custom----mail.corp.com----995", content)
 
-    def test_build_export_text_v2_temp_mail_section(self):
-        """临时邮箱分段仅邮箱地址"""
-        with self.app.app_context():
-            from outlook_web.controllers.accounts import _build_export_text
-
-            temp_emails = [{"email": "t1@temp.example"}, {"email": "t2@temp.example"}]
-            content = _build_export_text([], temp_emails)
-            self.assertIn("# === 临时邮箱（自建）===", content)
-            self.assertIn("t1@temp.example", content)
-            self.assertIn("t2@temp.example", content)
-            # 临时邮箱行不应包含 ----
-            for line in content.split("\n"):
-                if "@temp.example" in line and not line.startswith("#"):
-                    self.assertNotIn("----", line)
-
     def test_build_export_text_v2_mixed_counts(self):
         """混合账号统计正确"""
         with self.app.app_context():
@@ -129,12 +114,10 @@ class TestExportEnhancedV2(unittest.TestCase):
                 },
                 {"email": "c@gmail.com", "imap_password": "ip", "account_type": "imap", "provider": "gmail"},
             ]
-            temp_emails = [{"email": "t@temp.example"}]
-            content = _build_export_text(accounts, temp_emails)
-            self.assertIn("# 账号总数：4", content)
+            content = _build_export_text(accounts)
+            self.assertIn("# 账号总数：3", content)
             self.assertIn("Outlook：2", content)
             self.assertIn("Gmail：1", content)
-            self.assertIn("临时邮箱：1", content)
 
     def test_export_ends_with_newline(self):
         """导出文件末尾有换行"""

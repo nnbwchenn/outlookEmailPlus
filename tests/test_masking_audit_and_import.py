@@ -40,10 +40,7 @@ class MaskingAuditAndImportTests(unittest.TestCase):
 
         settings = data.get("settings") or {}
         self.assertNotIn("login_password", settings)
-        self.assertNotIn("gptmail_api_key", settings)
-        self.assertNotIn("gptmail_api_key_set", settings)
         self.assertIn("login_password_set", settings)
-        self.assertIn("temp_mail_api_key_set", settings)
 
     def test_account_get_does_not_return_password_or_refresh_token(self):
         unique = uuid.uuid4().hex
@@ -99,10 +96,14 @@ class MaskingAuditAndImportTests(unittest.TestCase):
 
         conn = self.module.create_sqlite_connection()
         try:
-            row = conn.execute("SELECT id, name FROM groups WHERE is_system = 1 LIMIT 1").fetchone()
-            self.assertIsNotNone(row)
-            system_group_id = row["id"]
-            system_group_name = row["name"]
+            # 临时邮箱系统分组已移除，此处手动创建一个系统分组用于验证保护逻辑
+            system_group_name = f"系统测试分组_{uuid.uuid4().hex[:8]}"
+            cur = conn.execute(
+                "INSERT INTO groups (name, description, color, is_system) VALUES (?, ?, ?, 1)",
+                (system_group_name, "system group for test", "#123456"),
+            )
+            system_group_id = cur.lastrowid
+            conn.commit()
         finally:
             conn.close()
 
@@ -201,56 +202,5 @@ class MaskingAuditAndImportTests(unittest.TestCase):
 
         logs = data.get("logs") or []
         matched = [r for r in logs if str(r.get("resource_id")) == str(group_id) and group_name in (r.get("details") or "")]
-        self.assertTrue(matched)
-        self.assertTrue(matched[0].get("trace_id"))
-
-    def test_temp_email_actions_are_audited(self):
-        client = self.app.test_client()
-        self._login(client)
-
-        unique = uuid.uuid4().hex
-        email_addr = f"tmp_{unique}@example.com"
-
-        # Mock legacy bridge 返回元组 (email_addr, None)
-        # 当前正式入口经 temp mail provider 间接调用兼容 bridge，因此这里仍 patch gptmail 模块。
-        from outlook_web.services import gptmail as gptmail_service
-
-        with patch.object(gptmail_service, "generate_temp_email", return_value=(email_addr, None)):
-            resp = client.post("/api/temp-emails/generate", json={})
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.get_json().get("success"), True)
-
-        create_audit = client.get("/api/audit-logs?resource_type=temp_email&action=create&limit=200")
-        self.assertEqual(create_audit.status_code, 200)
-        create_data = create_audit.get_json()
-        self.assertEqual(create_data.get("success"), True)
-        create_logs = create_data.get("logs") or []
-        self.assertTrue([r for r in create_logs if r.get("resource_id") == email_addr])
-
-        with patch.object(gptmail_service, "clear_temp_emails_from_api", return_value=True):
-            conn = self.module.create_sqlite_connection()
-            try:
-                conn.execute(
-                    """
-                    INSERT INTO temp_email_messages (message_id, email_address, subject, content, timestamp)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    ("msg_" + unique, email_addr, "s", "c", 1),
-                )
-                conn.commit()
-            finally:
-                conn.close()
-
-            clear_resp = client.delete(f"/api/temp-emails/{email_addr}/clear")
-        self.assertEqual(clear_resp.status_code, 200)
-        self.assertEqual(clear_resp.get_json().get("success"), True)
-
-        audit_resp = client.get("/api/audit-logs?resource_type=temp_email_messages&action=delete&limit=200")
-        self.assertEqual(audit_resp.status_code, 200)
-        audit = audit_resp.get_json()
-        self.assertEqual(audit.get("success"), True)
-
-        logs = audit.get("logs") or []
-        matched = [r for r in logs if (r.get("resource_id") == email_addr)]
         self.assertTrue(matched)
         self.assertTrue(matched[0].get("trace_id"))

@@ -41,7 +41,6 @@ from outlook_web.security.auth import MAX_LOGIN_ATTEMPTS
 from outlook_web.security.crypto import decrypt_data, encrypt_data
 from outlook_web.services import graph as graph_service
 from outlook_web.services import scheduler as scheduler_service
-from outlook_web.services.temp_mail_plugin_cli import main as temp_mail_plugin_cli_main
 
 # 在脚本运行场景（__main__）中，调度器由 main block 统一控制，
 # 避免 debug reloader 父进程误启后台线程。
@@ -87,6 +86,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] in {"install-provider", "uninstall-provider", "list-providers"}:
-        raise SystemExit(temp_mail_plugin_cli_main(sys.argv[1:]))
     main()

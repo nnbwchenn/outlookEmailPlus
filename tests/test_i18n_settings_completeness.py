@@ -104,46 +104,6 @@ class SettingsI18nCompletenessTests(unittest.TestCase):
         js = self._get_i18n_js()
         self._assert_exact_map_entry(js, "建议先保存配置再测试。", "Save settings before testing is recommended.")
 
-    # ── 临时邮箱 Provider 描述 ──
-
-    def test_self_hosted_provider_desc_has_translation(self):
-        js = self._get_i18n_js()
-        self._assert_exact_map_entry(js, "自建域名临时邮箱服务", "Self-hosted custom-domain temp mailbox service")
-
-    def test_cf_worker_provider_desc_has_translation(self):
-        js = self._get_i18n_js()
-        self._assert_exact_map_entry(js, "CF Worker 部署的临时邮箱", "Temp mailbox powered by CF Worker deployment")
-
-    # ── CF Worker 域名同步区 ──
-
-    def test_cf_sync_hint_short_has_translation(self):
-        js = self._get_i18n_js()
-        self._assert_exact_map_entry(
-            js,
-            "自动读取 CF Worker 的域名配置，同步至下方域名字段。",
-            "Automatically read CF Worker domain configuration and sync to the domain fields below.",
-        )
-
-    def test_cf_sync_hint_long_has_translation(self):
-        js = self._get_i18n_js()
-        self._assert_exact_map_entry(
-            js,
-            "自动读取 CF Worker 的域名配置，同步至下方「临时邮箱可用域名」和「默认域名」。",
-            'Automatically read the CF Worker domain configuration and sync to the "Available Domains" and "Default Domain" fields below.',
-        )
-
-    def test_available_domains_readonly_has_translation(self):
-        js = self._get_i18n_js()
-        self._assert_exact_map_entry(
-            js, "可用域名（只读 · 通过同步按钮更新）", "Available domains (read-only · updated via sync button)"
-        )
-
-    def test_default_domain_readonly_has_translation(self):
-        js = self._get_i18n_js()
-        self._assert_exact_map_entry(
-            js, "默认域名（只读 · 通过同步按钮更新）", "Default domain (read-only · updated via sync button)"
-        )
-
     # ── 变体一致性 ──
 
     def test_ai_enhancement_variants_share_same_translation(self):

@@ -45,11 +45,11 @@ class ResponsiveDetailFocusContractTests(unittest.TestCase):
         self.assertIn("toggleGroupsColumn()", html)
         self.assertIn("btn-toggle-groups", html)
 
-    def test_temp_email_detail_section_default_hidden(self):
-        """tempEmailDetailSection 应默认 display:none（移动端/平板端由 JS 控制）"""
+    def test_email_detail_section_default_hidden(self):
+        """emailDetailSection 应默认 display:none（移动端/平板端由 JS 控制）"""
         html = self._get_index_html()
-        self.assertIn('id="tempEmailDetailSection"', html)
-        section = re.search(r'id="tempEmailDetailSection"[^>]*>', html)
+        self.assertIn('id="emailDetailSection"', html)
+        section = re.search(r'id="emailDetailSection"[^>]*>', html)
         self.assertIsNotNone(section)
         self.assertIn("display:none", section.group(0))
 
@@ -66,12 +66,11 @@ class ResponsiveDetailFocusContractTests(unittest.TestCase):
     # ==================== JS 函数导出测试 ====================
 
     def test_emails_js_contains_detail_focus_functions(self):
-        """emails.js 应包含 setMailboxDetailFocus 和 setTempDetailFocus"""
+        """emails.js 应包含 setMailboxDetailFocus"""
         from pathlib import Path
 
         emails_js = Path("static/js/features/emails.js").read_text(encoding="utf-8")
         self.assertIn("function setMailboxDetailFocus", emails_js)
-        self.assertIn("function setTempDetailFocus", emails_js)
         self.assertIn("function isNarrowWorkspaceViewport", emails_js)
 
     def test_main_js_contains_toggle_groups_column(self):
@@ -114,7 +113,6 @@ class ResponsiveDetailFocusContractTests(unittest.TestCase):
         self.assertIsNotNone(mobile_section, "应找到移动端断点 @media 块")
         mobile = mobile_section.group(0)
         self.assertIn("detail-focus", mobile)
-        self.assertIn("tempEmailDetailSection", mobile)
 
     def test_css_desktop_hides_toggle_groups_button(self):
         """桌面端全局样式应隐藏 btn-toggle-groups"""
@@ -142,16 +140,8 @@ class ResponsiveDetailFocusContractTests(unittest.TestCase):
         accounts_js = Path("static/js/features/accounts.js").read_text(encoding="utf-8")
         self.assertIn("setMailboxDetailFocus(false)", accounts_js)
 
-    def test_temp_emails_js_handles_focus_toggle(self):
-        """temp_emails.js 应在刷新时退出 detail-focus、在查看时进入"""
-        from pathlib import Path
-
-        temp_js = Path("static/js/features/temp_emails.js").read_text(encoding="utf-8")
-        self.assertIn("setTempDetailFocus(false)", temp_js)
-        self.assertIn("setTempDetailFocus(true)", temp_js)
-
     def test_emails_js_show_email_list_resets_focus(self):
-        """emails.js showEmailList 应重置 mailbox 和 temp 两种 focus"""
+        """emails.js showEmailList 应重置 mailbox focus"""
         from pathlib import Path
 
         emails_js = Path("static/js/features/emails.js").read_text(encoding="utf-8")
@@ -162,7 +152,6 @@ class ResponsiveDetailFocusContractTests(unittest.TestCase):
         )
         self.assertIsNotNone(show_list_section)
         self.assertIn("setMailboxDetailFocus(false)", show_list_section.group(0))
-        self.assertIn("setTempDetailFocus(false)", show_list_section.group(0))
 
 
 if __name__ == "__main__":

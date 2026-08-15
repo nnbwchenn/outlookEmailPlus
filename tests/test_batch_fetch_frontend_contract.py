@@ -70,8 +70,8 @@ class BatchFetchFrontendContractTests(unittest.TestCase):
         html = self._get_index_html()
 
         compact_start = html.index('id="compactBatchActionBar"')
-        temp_mail_start = html.index("<!-- ===== Page: Temp Emails ===== -->")
-        compact_section = html[compact_start:temp_mail_start]
+        section_end = html.index("<!-- ===== Page: Refresh Log ===== -->")
+        compact_section = html[compact_start:section_end]
 
         self.assertNotIn("批量拉取邮件", compact_section)
         self.assertNotIn("showBatchFetchConfirm()", compact_section)

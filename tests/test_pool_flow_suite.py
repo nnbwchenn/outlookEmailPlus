@@ -603,45 +603,5 @@ class PoolFlowSuiteTests(unittest.TestCase):
         self.assertTrue(retry_data["success"])
         self.assertEqual(retry_data["data"]["account_id"], account_id)
 
-    def test_cloudflare_temp_mail_success_with_project_key_still_returns_old_status_semantics(self):
-        email_domain = f"cf_{uuid.uuid4().hex[:8]}.test"
-        self._make_pool_account(
-            provider="cloudflare_temp_mail",
-            account_type="temp_mail",
-            email_domain=email_domain,
-        )
-
-        claim_resp = self.client.post(
-            "/api/external/pool/claim-random",
-            headers=self._auth_headers(),
-            json={
-                "caller_id": "cf_bot",
-                "task_id": "cf_task_1",
-                "provider": "cloudflare_temp_mail",
-                "project_key": "project_cf",
-                "email_domain": email_domain,
-            },
-        )
-        self.assertEqual(claim_resp.status_code, 200)
-        claim_data = json.loads(claim_resp.data)
-        self.assertTrue(claim_data["success"])
-
-        complete_resp = self.client.post(
-            "/api/external/pool/claim-complete",
-            headers=self._auth_headers(),
-            json={
-                "account_id": claim_data["data"]["account_id"],
-                "claim_token": claim_data["data"]["claim_token"],
-                "caller_id": "cf_bot",
-                "task_id": "cf_task_1",
-                "result": "success",
-            },
-        )
-        self.assertEqual(complete_resp.status_code, 200)
-        complete_data = json.loads(complete_resp.data)
-        self.assertTrue(complete_data["success"])
-        self.assertEqual(complete_data["data"]["pool_status"], "used")
-
-
 if __name__ == "__main__":
     unittest.main()

@@ -161,7 +161,7 @@
                 return;
             }
 
-            const clickHandler = isTempEmailGroup ? 'getTempEmailDetail' : 'selectEmail';
+            const clickHandler = 'selectEmail';
             // Bug #24 修复：用 currentEmailDetail.id 保留 active 状态
             const currentActiveId = currentEmailDetail ? currentEmailDetail.id : null;
 
@@ -217,16 +217,8 @@
             }
         }
 
-        function isTempEmailSource(source) {
-            const normalizedSource = String(source || '').trim().toLowerCase();
-            return normalizedSource === 'temp' || normalizedSource === 'temp-mail' || normalizedSource === 'temp_mail';
-        }
-
         function resolveEmailDetailSource(options = {}) {
-            if (isTempEmailSource(options?.source)) {
-                return 'temp';
-            }
-            return isTempEmailGroup || currentPage === 'temp-emails' ? 'temp' : 'mailbox';
+            return 'mailbox';
         }
 
         // detail-focus 断点阈值：低于此宽度时切换列表/详情为互斥模式
@@ -259,43 +251,8 @@
             }
         }
 
-        // 临时邮箱消息列表/详情互斥切换 — 与 setMailboxDetailFocus 对称设计
-        // 被调用方: temp_emails.js(点击消息/刷新列表)、emails.js(切换回邮箱列表)
-        // CSS 配套: .workspace.workspace-temp-emails.detail-focus 规则(平板+移动端)
-        function setTempDetailFocus(active) {
-            const workspace = document.querySelector('.workspace.workspace-temp-emails');
-            const messagePanel = document.getElementById('tempEmailMessagePanel');
-            const detailPanel = document.getElementById('tempEmailDetailSection');
-            if (!workspace) return;
-
-            const shouldFocus = Boolean(active) && isNarrowWorkspaceViewport();
-            workspace.classList.toggle('detail-focus', shouldFocus);
-
-            if (shouldFocus) {
-                if (messagePanel) messagePanel.style.display = 'none';
-                if (detailPanel) detailPanel.style.display = 'flex';
-            } else if (isNarrowWorkspaceViewport()) {
-                if (messagePanel) messagePanel.style.display = '';
-                if (detailPanel) detailPanel.style.display = 'none';
-            } else {
-                if (messagePanel) messagePanel.style.display = '';
-                if (detailPanel) detailPanel.style.display = '';
-            }
-        }
-
         function getEmailDetailRefs(options = {}) {
             const source = resolveEmailDetailSource(options);
-            if (source === 'temp') {
-                return {
-                    source,
-                    section: document.getElementById('tempEmailDetailSection'),
-                    toolbar: document.getElementById('tempEmailDetailToolbar'),
-                    container: document.getElementById('tempEmailDetail'),
-                    trustCheckbox: document.getElementById('tempEmailTrustCheckbox'),
-                    iframeId: 'tempEmailBodyFrame',
-                };
-            }
-
             return {
                 source,
                 section: document.getElementById('emailDetailSection'),
@@ -359,9 +316,7 @@
         }
 
         function buildDetailVerificationOptions(options = {}) {
-            return resolveEmailDetailSource(options) === 'temp'
-                ? { ...options, source: 'temp' }
-                : { ...options, source: 'mailbox' };
+            return { ...options, source: 'mailbox' };
         }
 
         function extractVerificationFallbackFromDetail(options = {}) {
@@ -435,11 +390,6 @@
                 return;
             }
 
-            if (resolveEmailDetailSource() === 'temp') {
-                await deleteCurrentTempEmailMessage();
-                return;
-            }
-
             await deleteEmails([currentEmailDetail.id]);
         }
 
@@ -493,48 +443,6 @@
             } catch (e) {
                 showToast('网络错误', 'error');
                 console.error(e);
-            }
-        }
-
-        async function deleteCurrentTempEmailMessage() {
-            if (!currentEmailDetail || !currentEmailDetail.id || !currentAccount) {
-                return;
-            }
-
-            showToast('正在删除...', 'info');
-
-            try {
-                const response = await fetch(
-                    `/api/temp-emails/${encodeURIComponent(currentAccount)}/messages/${encodeURIComponent(currentEmailDetail.id)}`,
-                    { method: 'DELETE' }
-                );
-                const result = await response.json();
-
-                if (!result.success) {
-                    handleApiError(result, '删除失败');
-                    return;
-                }
-
-                const deletedId = currentEmailDetail.id;
-                currentEmails = currentEmails.filter(email => email.id !== deletedId);
-                currentEmailDetail = null;
-                renderEmailList(currentEmails, { scrollToTop: false });
-
-                const tempContainer = document.getElementById('tempEmailMessageList');
-                if (tempContainer && typeof renderTempEmailMessageList === 'function') {
-                    renderTempEmailMessageList(tempContainer, currentEmails);
-                }
-
-                const emailCount = document.getElementById('emailCount');
-                if (emailCount) {
-                    emailCount.textContent = `(${currentEmails.length})`;
-                }
-
-                resetEmailDetailState({ source: 'temp' });
-                showToast(translateAppTextLocal('邮件已删除'), 'success');
-            } catch (error) {
-                console.error('删除临时邮件失败:', error);
-                showToast(translateAppTextLocal('网络错误，请重试'), 'error');
             }
         }
 
@@ -987,17 +895,6 @@
 
         // 显示邮件列表（移动端）
         function showEmailList() {
-            if (resolveEmailDetailSource() === 'temp') {
-                if (typeof setTempDetailFocus === 'function') {
-                    setTempDetailFocus(false);
-                }
-                currentEmailDetail = null;
-                isTrustedMode = false;
-                resetEmailDetailState({ source: 'temp' });
-                hideEmailDetailContainer({ source: 'temp' });
-                return;
-            }
-
             setMailboxDetailFocus(false);
             syncEmailListVisibility(true);
             isListVisible = true;
@@ -1011,14 +908,10 @@
         // 刷新邮件
         function refreshEmails() {
             if (currentAccount) {
-                if (isTempEmailGroup) {
-                    loadTempEmailMessages(currentAccount);
-                } else {
-                    // 清除当前缓存并强制刷新
-                    const cacheKey = `${currentAccount}_${currentFolder}`;
-                    delete emailListCache[cacheKey];
-                    loadEmails(currentAccount, true);
-                }
+                // 清除当前缓存并强制刷新
+                const cacheKey = `${currentAccount}_${currentFolder}`;
+                delete emailListCache[cacheKey];
+                loadEmails(currentAccount, true);
             } else {
                 showToast('请先选择一个邮箱账号', 'error');
             }
@@ -1068,7 +961,7 @@
         function copyCurrentEmail() {
             const emailElement = document.getElementById('currentAccountEmail');
             if (emailElement && emailElement.textContent) {
-                const email = emailElement.textContent.replace(/\s+\((临时|Temp)\)$/, '').trim();
+                const email = emailElement.textContent.trim();
                 copyEmail(email);
             }
         }

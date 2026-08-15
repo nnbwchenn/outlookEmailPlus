@@ -21,7 +21,6 @@ from outlook_web.services.imap_generic import (
     get_email_detail_imap_generic_result,
     get_emails_imap_generic,
 )
-from outlook_web.services.temp_mail_service import TempMailError, get_temp_mail_service
 from outlook_web.services.verification_extract_log import (
     resolve_extract_log_outcome,
     write_verification_extract_log,
@@ -492,17 +491,7 @@ def list_messages_for_external(
     top = max(1, min(int(top or 20), 50))
 
     if mailbox.get("kind") == "temp":
-        service = get_temp_mail_service()
-        try:
-            messages = service.list_messages(mailbox, sync_remote=True)
-        except TempMailError as exc:
-            raise UpstreamReadFailedError(
-                "临时邮箱上游读取失败" if exc.code == "TEMP_EMAIL_UPSTREAM_READ_FAILED" else exc.message,
-                data=exc.data,
-            ) from exc
-        sliced = messages[skip : skip + top]  # noqa: E203
-        method_label = str(sliced[0].get("method") or "Temp Mail") if sliced else "Temp Mail"
-        return sliced, method_label
+        raise UpstreamReadFailedError("临时邮箱功能已移除", data={"email": email_addr})
 
     account = mailbox_meta
 
@@ -666,16 +655,7 @@ def get_message_detail_for_external(  # noqa: C901
 
     folder = (folder or "inbox").strip().lower() or "inbox"
     if mailbox.get("kind") == "temp":
-        service = get_temp_mail_service()
-        try:
-            return service.refresh_message_detail(mailbox, message_id)
-        except TempMailError as exc:
-            if exc.code == "TEMP_EMAIL_MESSAGE_NOT_FOUND":
-                raise MailNotFoundError(exc.message, data={"email": email_addr, "message_id": message_id}) from exc
-            raise UpstreamReadFailedError(
-                "临时邮箱上游读取失败" if exc.code == "TEMP_EMAIL_UPSTREAM_READ_FAILED" else exc.message,
-                data=exc.data,
-            ) from exc
+        raise MailNotFoundError("临时邮箱功能已移除", data={"email": email_addr, "message_id": message_id})
 
     account = mailbox_meta
     account_type = (account.get("account_type") or "outlook").strip().lower()
@@ -865,9 +845,6 @@ def _resolve_extract_log_channel(result: Optional[Dict[str, Any]], *, folder: st
     if mapped:
         return mapped
 
-    method_text = str(method or "").strip().lower()
-    if "temp" in method_text:
-        return "temp_mail"
     return "unknown"
 
 

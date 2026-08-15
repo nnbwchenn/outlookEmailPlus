@@ -506,9 +506,13 @@ class ErrorAndTraceTests(unittest.TestCase):
 
         conn = self.module.create_sqlite_connection()
         try:
-            row = conn.execute("SELECT id FROM groups WHERE is_system = 1 LIMIT 1").fetchone()
-            self.assertIsNotNone(row)
-            system_group_id = row["id"]
+            # 临时邮箱系统分组已移除，手动创建系统分组验证保护逻辑
+            cur = conn.execute(
+                "INSERT INTO groups (name, description, color, is_system) VALUES (?, ?, ?, 1)",
+                (f"系统测试_{uuid.uuid4().hex[:8]}", "", "#123456"),
+            )
+            system_group_id = cur.lastrowid
+            conn.commit()
         finally:
             conn.close()
 
@@ -531,9 +535,12 @@ class ErrorAndTraceTests(unittest.TestCase):
 
         conn = self.module.create_sqlite_connection()
         try:
-            system_row = conn.execute("SELECT id FROM groups WHERE is_system = 1 LIMIT 1").fetchone()
-            self.assertIsNotNone(system_row)
-            system_group_id = system_row["id"]
+            # 临时邮箱系统分组已移除，手动创建系统分组验证保护逻辑
+            cur = conn.execute(
+                "INSERT INTO groups (name, description, color, is_system) VALUES (?, ?, ?, 1)",
+                (f"系统测试_{uuid.uuid4().hex[:8]}", "", "#123456"),
+            )
+            system_group_id = cur.lastrowid
 
             cur = conn.execute(
                 """

@@ -95,13 +95,11 @@ def normalize_group_verification_policy(
 
 
 def load_groups() -> List[Dict]:
-    """加载所有分组（临时邮箱分组排在最前面）"""
+    """加载所有分组"""
     db = get_db()
     cursor = db.execute("""
         SELECT * FROM groups
-        ORDER BY
-            CASE WHEN name = '临时邮箱' THEN 0 ELSE 1 END,
-            id
+        ORDER BY id
     """)
     rows = cursor.fetchall()
     return [dict(row) for row in rows]
@@ -272,9 +270,7 @@ def load_groups_with_account_count() -> List[Dict]:
             FROM accounts
             GROUP BY group_id
         ) a ON a.group_id = g.id
-        ORDER BY
-            CASE WHEN g.name = '临时邮箱' THEN 0 ELSE 1 END,
-            g.id
+        ORDER BY g.id
     """)
     rows = cursor.fetchall()
     return [dict(row) for row in rows]

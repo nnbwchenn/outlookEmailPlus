@@ -295,11 +295,6 @@ input, textarea, select { font-family: inherit; }
   height: calc(100vh - 52px);
 }
 
-/* Workspace 具体布局 - temp-emails 两栏 */
-.workspace.workspace-temp-emails {
-  height: calc(100vh - 52px);
-}
-
 /* ===== 三栏主布局（账号管理页）- 兼容旧类名（已弃用，仅保留过渡兼容） ===== */
 /* NOTE: 新代码应使用 .workspace.workspace-mailbox，此段将在后续版本移除 */
 .mailbox-layout { display: flex; height: calc(100vh - 52px); gap: 0; }
@@ -994,7 +989,7 @@ textarea.form-input {
   color: var(--clr-jade); letter-spacing: 0.15em;
 }
 
-/* ===== 临时邮箱（邮箱卡片网格） ===== */
+/* ===== 邮箱卡片网格 ===== */
 .mailbox-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;
 }
@@ -1351,12 +1346,6 @@ tr:hover td { background: rgba(184,92,56,0.04); }
   .page { padding: 1rem; }
   /* mailbox：平板下固定 accounts 宽度，覆盖历史拖拽 inline width */
   .workspace.workspace-mailbox .accounts-column { width: 220px !important; }
-  /* temp-emails：平板下左侧列表栏适度收窄 */
-  .workspace.workspace-temp-emails #tempEmailPanel { width: 260px !important; }
-  /* temp-emails：平板下默认只展示消息列，详情按需展开 */
-  .workspace.workspace-temp-emails #tempEmailDetailSection { display: none; }
-  .workspace.workspace-temp-emails.detail-focus #tempEmailMessagePanel { display: none !important; }
-  .workspace.workspace-temp-emails.detail-focus #tempEmailDetailSection { display: flex !important; }
   /* mailbox：平板下进入详情时隐藏列表，避免“列表 + 详情”同时挤压 */
   #emailListPanel.detail-focus #emailList { display: none; }
   #emailListPanel.detail-focus #emailDetailSection {
@@ -1420,8 +1409,7 @@ tr:hover td { background: rgba(184,92,56,0.04); }
   .mailbox-layout { flex-direction: column; height: auto; }
   
   /* 新 workspace 移动端响应式 */
-  .workspace.workspace-mailbox,
-  .workspace.workspace-temp-emails {
+  .workspace.workspace-mailbox {
     flex-direction: column;
     height: auto;
   }
@@ -1431,20 +1419,14 @@ tr:hover td { background: rgba(184,92,56,0.04); }
     border-right: none; border-bottom: 1px solid var(--border);
   }
   .workspace.workspace-mailbox .workspace-panel.accounts-column,
-  .workspace.workspace-temp-emails .workspace-panel.accounts-column,
   .accounts-column {
     width: 100%; height: auto; max-height: 300px;
     border-right: none; border-bottom: 1px solid var(--border);
   }
   .workspace.workspace-mailbox .workspace-panel.emails-column,
-  .workspace.workspace-temp-emails .workspace-panel.emails-column,
   .emails-column {
     width: 100%;
   }
-  /* 移动端：临时邮箱默认隐藏详情区，点击邮件后由 JS 展示 */
-  .workspace.workspace-temp-emails #tempEmailDetailSection { display: none; }
-  .workspace.workspace-temp-emails.detail-focus #tempEmailMessagePanel { display: none !important; }
-  .workspace.workspace-temp-emails.detail-focus #tempEmailDetailSection { display: flex !important; }
   /* 移动端：邮箱详情 focus 时隐藏列表、展开详情 */
   #emailListPanel.detail-focus #emailList { display: none; }
   #emailListPanel.detail-focus #emailDetailSection {

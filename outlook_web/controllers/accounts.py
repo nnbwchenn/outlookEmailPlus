@@ -925,21 +925,6 @@ def _detect_line_type(
             }
         return _err("未知域名且未提供兜底 IMAP 服务器地址")
 
-    # n == 1 → 临时邮箱
-    if n == 1:
-        email = parts[0].strip()
-        if not email or "@" not in email:
-            return _err("无法解析的行")
-        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-            return _err("邮箱格式不正确")
-        return {
-            "type": "temp_mail",
-            "provider": "temp_mail",
-            "fields": {"email": email},
-            "error": None,
-            "auto_group_name": PROVIDER_GROUP_NAME.get("temp_mail", "临时邮箱"),
-        }
-
     return _err("无法解析的行")
 
 
@@ -1005,66 +990,6 @@ def _overwrite_account(existing: Dict, detect_result: Dict, group_id: int, add_t
     return accounts_repo.update_account_credentials(existing["id"], **fields)
 
 
-def _handle_temp_mail_import(
-    email: str,
-    errors: List[Dict[str, Any]],
-    line_num: int,
-    temp_mail_count: int,
-    max_temp_mail: int = 20,
-) -> bool:
-    """处理临时邮箱的导入，写入 temp_emails 表。"""
-    from outlook_web.repositories import temp_emails as temp_emails_repo
-    from outlook_web.services.temp_mail_service import (
-        TEMP_MAIL_SOURCE,
-        get_temp_mail_service,
-    )
-
-    if temp_mail_count >= max_temp_mail:
-        errors.append(
-            {
-                "line": line_num,
-                "email": email,
-                "error": f"临时邮箱单次导入上限 {max_temp_mail} 个",
-                "detected_type": "temp_mail",
-            }
-        )
-        return False
-
-    # 检查是否已存在
-    existing = temp_emails_repo.get_temp_email_by_address(email)
-    if existing:
-        return True  # 已存在视为跳过（成功）
-
-    # BUG-02: 严格导入（不做本地兜底写入）
-    temp_mail_service = get_temp_mail_service()
-    try:
-        mailbox = temp_mail_service.import_user_mailbox(email, allow_local_fallback=False)
-    except Exception as exc:
-        errors.append(
-            {
-                "line": line_num,
-                "email": email,
-                "error": f"临时邮箱导入失败：{str(exc) or '上游探测失败'}",
-                "detected_type": "temp_mail",
-            }
-        )
-        return False
-
-    actual_email = str((mailbox or {}).get("email") or "").strip() or email
-    # 导入成功后应已落库；这里做一次确认
-    if temp_emails_repo.get_temp_email_by_address(actual_email):
-        return True
-    errors.append(
-        {
-            "line": line_num,
-            "email": email,
-            "error": "临时邮箱导入失败：导入未落库",
-            "detected_type": "temp_mail",
-        }
-    )
-    return False
-
-
 def _handle_auto_import(data: Dict[str, Any], *, add_to_pool: bool = False) -> Any:
     """处理 provider="auto" 的智能混合导入。"""
     account_str = data.get("account_string", "")
@@ -1127,7 +1052,6 @@ def _handle_auto_import(data: Dict[str, Any], *, add_to_pool: bool = False) -> A
     errors_total = 0
     max_error_details = 50
     group_cache: Dict[str, int] = {}
-    temp_mail_count = 0
 
     for line_num, raw in enumerate(raw_lines, 1):
         line = (raw or "").strip()
@@ -1165,32 +1089,6 @@ def _handle_auto_import(data: Dict[str, Any], *, add_to_pool: bool = False) -> A
         # 初始化 provider 统计
         if prov not in by_provider:
             by_provider[prov] = {"imported": 0, "skipped": 0, "failed": 0}
-
-        # 临时邮箱特殊处理：写入 temp_emails
-        if result["type"] == "temp_mail":
-            from outlook_web.repositories import temp_emails as temp_emails_repo
-
-            existing_temp = temp_emails_repo.get_temp_email_by_address(email)
-            if existing_temp:
-                if duplicate_strategy == "skip":
-                    skipped += 1
-                    by_provider[prov]["skipped"] += 1
-                    continue
-                # overwrite 对临时邮箱无意义（无凭据可更新），视为跳过
-                skipped += 1
-                by_provider[prov]["skipped"] += 1
-                continue
-
-            ok = _handle_temp_mail_import(email, errors, line_num, temp_mail_count)
-            if ok:
-                imported += 1
-                temp_mail_count += 1
-                by_provider[prov]["imported"] += 1
-            else:
-                failed += 1
-                errors_total += 1
-                by_provider[prov]["failed"] += 1
-            continue
 
         # 解析分组（Outlook/IMAP）
         if use_auto_group:
@@ -1314,18 +1212,8 @@ def _handle_auto_import(data: Dict[str, Any], *, add_to_pool: bool = False) -> A
 
 @login_required
 def api_update_account(account_id: int) -> Any:
-    """更新账号（邮箱池管理的 CF 临时邮箱不允许手动编辑）"""
-    # 邮箱池管理的 CF 临时邮箱不允许手动编辑
+    """更新账号"""
     db = get_db()
-    cf_row = db.execute("SELECT provider FROM accounts WHERE id = ?", (account_id,)).fetchone()
-    if cf_row and (cf_row["provider"] or "").lower() == "cloudflare_temp_mail":
-        return build_error_response(
-            "POOL_ACCOUNT_UPDATE_DENIED",
-            "邮箱池管理的 CF 临时邮箱不允许手动编辑",
-            message_en="CF temp mail accounts managed by pool cannot be edited manually.",
-            status=403,
-        )
-
     data = request.json
 
     # 检查是否只更新状态
@@ -1688,21 +1576,13 @@ def api_batch_notification_toggle() -> Any:
 
 @login_required
 def api_delete_account(account_id: int) -> Any:
-    """删除账号（邮箱池管理的 CF 临时邮箱不允许手动删除）"""
+    """删除账号"""
     email_addr = ""
     try:
         db = get_db()
         row = db.execute("SELECT email, provider FROM accounts WHERE id = ?", (account_id,)).fetchone()
         if row:
             email_addr = row["email"]
-            # 邮箱池管理的 CF 临时邮箱不允许手动删除
-            if (row["provider"] or "").lower() == "cloudflare_temp_mail":
-                return build_error_response(
-                    "POOL_ACCOUNT_DELETE_DENIED",
-                    "邮箱池管理的 CF 临时邮箱不允许手动删除，请通过邮箱池接口释放",
-                    message_en="CF temp mail accounts managed by pool cannot be deleted manually. Use pool release API instead.",
-                    status=403,
-                )
     except Exception:
         email_addr = ""
     if accounts_repo.delete_account_by_id(account_id):
@@ -1723,16 +1603,7 @@ def api_delete_account(account_id: int) -> Any:
 
 @login_required
 def api_delete_account_by_email(email_addr: str) -> Any:
-    """根据邮箱地址删除账号（邮箱池管理的 CF 临时邮箱不允许手动删除）"""
-    db = get_db()
-    row = db.execute("SELECT provider FROM accounts WHERE email = ?", (email_addr,)).fetchone()
-    if row and (row["provider"] or "").lower() == "cloudflare_temp_mail":
-        return build_error_response(
-            "POOL_ACCOUNT_DELETE_DENIED",
-            "邮箱池管理的 CF 临时邮箱不允许手动删除，请通过邮箱池接口释放",
-            message_en="CF temp mail accounts managed by pool cannot be deleted manually. Use pool release API instead.",
-            status=403,
-        )
+    """根据邮箱地址删除账号"""
     if accounts_repo.delete_account_by_email(email_addr):
         log_audit("delete", "account", email_addr, f"删除账号：{email_addr}")
         return jsonify({"success": True})
@@ -1769,15 +1640,10 @@ def api_batch_delete_accounts() -> Any:
 
     for account_id in account_ids:
         try:
-            # 获取邮箱地址和 provider 用于审计日志和保护判断
+            # 获取邮箱地址用于审计日志
             db = get_db()
-            row = db.execute("SELECT email, provider FROM accounts WHERE id = ?", (account_id,)).fetchone()
+            row = db.execute("SELECT email FROM accounts WHERE id = ?", (account_id,)).fetchone()
             email_addr = row["email"] if row else ""
-
-            # 邮箱池管理的 CF 临时邮箱不允许手动删除，跳过
-            if row and (row["provider"] or "").lower() == "cloudflare_temp_mail":
-                failed_count += 1
-                continue
 
             if accounts_repo.delete_account_by_id(account_id):
                 log_audit(
@@ -1872,7 +1738,7 @@ def api_batch_update_account_group() -> Any:
             status=404,
         )
 
-    # 检查是否是临时邮箱分组（系统保留分组）
+    # 检查是否是系统保留分组
     if group.get("is_system"):
         return build_error_response(
             "SYSTEM_GROUP_PROTECTED",
@@ -2041,24 +1907,18 @@ def api_search_accounts() -> Any:
 # ==================== 导出功能 API ====================
 
 
-def _build_export_text(accounts: List[Dict[str, Any]], temp_emails: Optional[List[Dict]] = None) -> str:
-    """构建导出文本 v2：头部元信息 + 分段 + 临时邮箱分段。"""
+def _build_export_text(accounts: List[Dict[str, Any]]) -> str:
+    """构建导出文本 v2：头部元信息 + 分段。"""
     import io
 
     from outlook_web.services.providers import MAIL_PROVIDERS, get_provider_list
 
     outlook_lines: List[str] = []
     imap_groups: Dict[str, List[str]] = {}
-    temp_mail_lines: List[str] = []
 
     for acc in accounts or []:
         atype = (acc.get("account_type") or "outlook").strip().lower()
         prov = (acc.get("provider") or "").strip().lower()
-
-        # 兼容历史 provider，统一按临时邮箱导出
-        if prov in {"gptmail", "temp_mail"}:
-            temp_mail_lines.append(acc.get("email", ""))
-            continue
 
         if atype == "outlook":
             line = f"{acc.get('email', '')}----{acc.get('password', '')}----{acc.get('client_id', '')}----{acc.get('refresh_token', '')}"
@@ -2074,14 +1934,8 @@ def _build_export_text(accounts: List[Dict[str, Any]], temp_emails: Optional[Lis
 
         imap_groups.setdefault(provider, []).append(line)
 
-    # 追加 temp_emails 中的临时邮箱
-    for te in temp_emails or []:
-        email = te.get("email", "")
-        if email and email not in temp_mail_lines:
-            temp_mail_lines.append(email)
-
     # 统计
-    total = len(outlook_lines) + sum(len(v) for v in imap_groups.values()) + len(temp_mail_lines)
+    total = len(outlook_lines) + sum(len(v) for v in imap_groups.values())
     buf = io.StringIO()
 
     # 头部元信息
@@ -2094,8 +1948,6 @@ def _build_export_text(accounts: List[Dict[str, Any]], temp_emails: Optional[Lis
     for prov_key, lines in imap_groups.items():
         label = (MAIL_PROVIDERS.get(prov_key, {}) or {}).get("label", prov_key)
         buf.write(f"#   {label}：{len(lines)}\n")
-    if temp_mail_lines:
-        buf.write(f"#   临时邮箱：{len(temp_mail_lines)}\n")
     buf.write("# 格式版本：v2\n")
     buf.write("# ============================================\n")
 
@@ -2127,12 +1979,6 @@ def _build_export_text(accounts: List[Dict[str, Any]], temp_emails: Optional[Lis
         for line in lines:
             buf.write(line + "\n")
 
-    # 临时邮箱分段
-    if temp_mail_lines:
-        buf.write("\n# === 临时邮箱（自建）===\n")
-        for line in temp_mail_lines:
-            buf.write(line + "\n")
-
     return buf.getvalue()
 
 
@@ -2157,12 +2003,7 @@ def api_export_all_accounts() -> Any:
     # 使用 load_accounts 获取所有账号（自动解密）
     accounts = accounts_repo.load_accounts()
 
-    # 加载临时邮箱
-    from outlook_web.repositories import temp_emails as temp_emails_repo
-
-    temp_emails = temp_emails_repo.load_temp_emails()
-
-    if not accounts and not temp_emails:
+    if not accounts:
         return build_error_response(
             "ACCOUNT_EXPORT_EMPTY",
             "没有邮箱账号",
@@ -2175,10 +2016,10 @@ def api_export_all_accounts() -> Any:
         "export",
         "all_accounts",
         None,
-        f"导出所有账号，共 {len(accounts)} 个账号 + {len(temp_emails)} 个临时邮箱",
+        f"导出所有账号，共 {len(accounts)} 个账号",
     )
 
-    content = _build_export_text(accounts, temp_emails)
+    content = _build_export_text(accounts)
 
     # 生成文件名（使用 URL 编码处理中文）
     filename = f"accounts_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -2224,15 +2065,7 @@ def api_export_selected_accounts() -> Any:
         accounts = accounts_repo.load_accounts(group_id)
         all_accounts.extend(accounts)
 
-    # 仅当选中了"临时邮箱"系统分组时才附加临时邮箱
-    from outlook_web.repositories import temp_emails as temp_emails_repo
-
-    temp_emails: List[Dict] = []
-    temp_group = groups_repo.get_group_by_name("临时邮箱")
-    if temp_group and temp_group["id"] in group_ids:
-        temp_emails = temp_emails_repo.load_temp_emails()
-
-    if not all_accounts and not temp_emails:
+    if not all_accounts:
         return build_error_response(
             "ACCOUNT_EXPORT_EMPTY",
             "选中的分组下没有邮箱账号",
@@ -2245,10 +2078,10 @@ def api_export_selected_accounts() -> Any:
         "export",
         "selected_groups",
         ",".join(map(str, group_ids)),
-        f"导出选中分组的 {len(all_accounts)} 个账号 + {len(temp_emails)} 个临时邮箱",
+        f"导出选中分组的 {len(all_accounts)} 个账号",
     )
 
-    content = _build_export_text(all_accounts, temp_emails)
+    content = _build_export_text(all_accounts)
 
     # 生成文件名
     filename = f"accounts_export_selected_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"

@@ -14,10 +14,7 @@ pretty = true
 follow_imports = "skip"
 
 [tool.coverage.run]
-omit = [
-    "*/outlookEmail-tests-*/plugins/temp_mail_providers/*.py",
-    "*/outlookEmail-tests-*/plugins/temp_mail_providers/test_plugin/*.py",
-]
+omit = []
 
 [tool.coverage.report]
 exclude_lines = [

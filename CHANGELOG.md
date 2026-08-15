@@ -4,6 +4,8 @@ All notable changes to OutlookMail Plus are documented in this file.
 
 ## [Unreleased]
 
+- **移除临时邮箱功能**：彻底移除临时邮箱（含 CF Worker / GPTMail / Custom / 插件 Provider）能力，包括前端页面与设置项、后端服务与路由、`temp_emails` / `temp_email_messages` 数据库表（升级时自动清理）、插件系统与相关文档；邮箱池仅保留 Outlook / IMAP 长期邮箱语义。验证码提取保留，仅移除临时邮箱来源。
+
 ## [v2.8.0] - 2026-07-26
 
 旧前端紧急版本（Issue #115）。在 SPA 新前端迁移（#109）之前，先发布一个范围受控、可回滚的稳定旧前端版本，合入近期关键缺陷修复与验证码能力增强。

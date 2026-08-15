@@ -29,24 +29,6 @@ def get_login_password_default() -> str:
     return _getenv("LOGIN_PASSWORD", "admin123") or "admin123"
 
 
-def get_gptmail_base_url() -> str:
-    return _getenv("GPTMAIL_BASE_URL", "https://mail.chatgpt.org.uk") or "https://mail.chatgpt.org.uk"
-
-
-def get_gptmail_api_key_default() -> str:
-    return _getenv("GPTMAIL_API_KEY", "gpt-test") or "gpt-test"
-
-
-def get_temp_mail_base_url() -> str:
-    """正式临时邮箱上游地址；环境变量保持兼容旧 GPTMAIL_* 命名。"""
-    return get_gptmail_base_url()
-
-
-def get_temp_mail_api_key_default() -> str:
-    """正式临时邮箱 API Key 默认值；环境变量保持兼容旧 GPTMAIL_* 命名。"""
-    return get_gptmail_api_key_default()
-
-
 def env_true(key: str, default: bool) -> bool:
     """
     与旧实现保持一致：只有值为 'true'（忽略大小写）才视为 True；其它值均为 False。

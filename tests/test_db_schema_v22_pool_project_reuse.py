@@ -123,7 +123,7 @@ class DbSchemaV22PoolProjectReuseTests(unittest.TestCase):
             finally:
                 conn.close()
 
-    def test_init_db_v22_keeps_cloudflare_temp_mail_out_of_long_lived_migration_scope(self):
+    def test_init_db_v22_moves_all_historical_used_accounts_back_to_available(self):
         with tempfile.TemporaryDirectory(prefix="outlookEmail-v22-") as tmp:
             db_path = Path(tmp) / "legacy_v21.db"
             self._seed_legacy_v21_db(db_path)
@@ -136,7 +136,7 @@ class DbSchemaV22PoolProjectReuseTests(unittest.TestCase):
             try:
                 row = conn.execute("SELECT pool_status FROM accounts WHERE email = 'legacy_cf@example.com'").fetchone()
                 self.assertIsNotNone(row)
-                self.assertEqual(row[0], "used")
+                self.assertEqual(row[0], "available")
             finally:
                 conn.close()
 

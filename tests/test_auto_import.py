@@ -23,7 +23,6 @@ class TestAutoImport(unittest.TestCase):
             db.execute(
                 "DELETE FROM accounts WHERE email LIKE '%@autotest.%' OR email LIKE '%@gmail.com' OR email LIKE '%@qq.com'"
             )
-            db.execute("DELETE FROM temp_emails WHERE email LIKE '%@autotest.%' OR email LIKE '%@gptmail.com'")
             db.commit()
 
     def _login(self, client):

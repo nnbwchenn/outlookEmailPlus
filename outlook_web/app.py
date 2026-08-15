@@ -38,17 +38,14 @@ def create_app(*, autostart_scheduler: Optional[bool] = None):
             audit,
             emails,
             external_pool,
-            external_temp_emails,
             groups,
             overview,
             pages,
-            plugins,
             pool_admin,
             scheduler,
             settings,
             system,
             tags,
-            temp_emails,
         )
         from outlook_web.security.csrf import init_csrf
 
@@ -73,13 +70,6 @@ def create_app(*, autostart_scheduler: Optional[bool] = None):
 
         # 初始化数据库
         init_db()
-
-        # 插件目录与第三方 provider 加载（不影响内置 provider）
-        plugins_dir = Path(config.get_database_path()).resolve().parent / "plugins" / "temp_mail_providers"
-        plugins_dir.mkdir(parents=True, exist_ok=True)
-        from outlook_web.services.temp_mail_provider_factory import load_plugins
-
-        load_plugins()
 
         app = Flask(
             __name__,
@@ -180,16 +170,13 @@ def create_app(*, autostart_scheduler: Optional[bool] = None):
         app.register_blueprint(tags.create_blueprint())
         app.register_blueprint(accounts.create_blueprint())
         app.register_blueprint(emails.create_blueprint())
-        app.register_blueprint(temp_emails.create_blueprint(csrf_exempt=csrf_exempt))
         app.register_blueprint(settings.create_blueprint())
-        app.register_blueprint(plugins.create_blueprint(csrf_exempt=csrf_exempt))
         app.register_blueprint(scheduler.create_blueprint())
         app.register_blueprint(system.create_blueprint())
         app.register_blueprint(audit.create_blueprint())
         app.register_blueprint(overview.create_blueprint())
         app.register_blueprint(pool_admin.create_blueprint())
         app.register_blueprint(external_pool.create_blueprint(csrf_exempt=csrf_exempt))
-        app.register_blueprint(external_temp_emails.create_blueprint(csrf_exempt=csrf_exempt))
         if app_config.get_oauth_tool_enabled():
             from outlook_web.routes import token_tool
 
@@ -217,7 +204,6 @@ def create_app(*, autostart_scheduler: Optional[bool] = None):
         print("=" * 60)
         print("Outlook 邮件 Web 应用已初始化")
         print(f"数据库文件: {config.get_database_path()}")
-        print(f"Temp Mail API: {config.get_temp_mail_base_url()}")
         print("=" * 60)
 
         _APP_INSTANCE = app

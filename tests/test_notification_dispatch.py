@@ -27,8 +27,6 @@ class NotificationDispatchTests(unittest.TestCase):
             db.execute("DELETE FROM notification_cursor_states")
             db.execute("DELETE FROM notification_delivery_logs")
             db.execute("DELETE FROM telegram_push_log")
-            db.execute("DELETE FROM temp_email_messages")
-            db.execute("DELETE FROM temp_emails")
             db.execute("DELETE FROM accounts")
             db.commit()
             settings_repo.set_setting("email_notification_enabled", "false")
@@ -82,17 +80,6 @@ class NotificationDispatchTests(unittest.TestCase):
             )
             conn.commit()
             return cur.lastrowid
-        finally:
-            conn.close()
-
-    def _insert_temp_email(self, email_addr: str):
-        conn = self.module.create_sqlite_connection()
-        try:
-            conn.execute(
-                "INSERT INTO temp_emails (email, status) VALUES (?, 'active')",
-                (email_addr,),
-            )
-            conn.commit()
         finally:
             conn.close()
 
@@ -153,72 +140,6 @@ class NotificationDispatchTests(unittest.TestCase):
                 notification_dispatch.build_source_key(notification_dispatch.SOURCE_ACCOUNT, "first@example.com"),
             )
             self.assertTrue(cursor)
-
-    def test_email_notification_job_covers_account_and_temp_email_and_uses_delivery_logs(
-        self,
-    ):
-        with self.app.app_context():
-            from outlook_web.db import get_db
-            from outlook_web.services import notification_dispatch
-
-            self._insert_account("notify-account@example.com", telegram_enabled=1)
-            self._insert_temp_email("notify-temp@example.com")
-            notification_dispatch.bootstrap_channel_cursors(
-                notification_dispatch.CHANNEL_EMAIL,
-                cursor_value="2026-03-01T00:00:00",
-            )
-            settings_repo.set_setting("email_notification_enabled", "true")
-            settings_repo.set_setting("email_notification_recipient", "notify@example.com")
-
-            def fake_fetch(source, since):
-                if source["source_type"] == notification_dispatch.SOURCE_ACCOUNT:
-                    return [
-                        {
-                            "message_id": "<account-1@example.com>",
-                            "subject": "Account Subject",
-                            "sender": "sender@example.com",
-                            "received_at": "2026-03-02T10:00:00",
-                            "content": "account body",
-                            "folder": "inbox",
-                        }
-                    ]
-                return [
-                    {
-                        "message_id": "temp-1",
-                        "subject": "Temp Subject",
-                        "sender": "temp@example.com",
-                        "received_at": "2026-03-02T11:00:00",
-                        "content": "temp body",
-                        "folder": "inbox",
-                    }
-                ]
-
-            with (
-                patch.dict(
-                    os.environ,
-                    {
-                        "EMAIL_NOTIFICATION_SMTP_HOST": "smtp.example.com",
-                        "EMAIL_NOTIFICATION_SMTP_PORT": "587",
-                        "EMAIL_NOTIFICATION_FROM": "noreply@example.com",
-                    },
-                    clear=False,
-                ),
-                patch(
-                    "outlook_web.services.notification_dispatch.fetch_source_messages",
-                    side_effect=fake_fetch,
-                ),
-                patch("outlook_web.services.notification_dispatch.send_business_email_notification") as send_mock,
-            ):
-                notification_dispatch.run_email_notification_job(self.app)
-
-            self.assertEqual(send_mock.call_count, 2)
-            db = get_db()
-            rows = db.execute(
-                "SELECT channel, source_type, source_key, status FROM notification_delivery_logs ORDER BY source_type ASC"
-            ).fetchall()
-            self.assertEqual(len(rows), 2)
-            self.assertEqual({row["source_type"] for row in rows}, {"account", "temp_email"})
-            self.assertTrue(all(row["status"] == "sent" for row in rows))
 
     def test_missing_message_id_uses_stable_fallback_dedup(self):
         with self.app.app_context():
@@ -1147,60 +1068,6 @@ class NotificationDispatchTests(unittest.TestCase):
             )
             self.assertEqual(email_cursor, "2026-03-02T10:00:00")
             self.assertEqual(telegram_cursor, "2026-03-02T10:00:00")
-
-    def test_temp_email_html_body_is_converted_for_notification(self):
-        with self.app.app_context():
-            from outlook_web.db import get_db
-            from outlook_web.services import notification_dispatch
-
-            self._insert_temp_email("html-temp@example.com")
-            notification_dispatch.bootstrap_channel_cursors(
-                notification_dispatch.CHANNEL_EMAIL,
-                cursor_value="2026-03-01T00:00:00",
-            )
-            settings_repo.set_setting("email_notification_enabled", "true")
-            settings_repo.set_setting("email_notification_recipient", "notify@example.com")
-            get_db().execute(
-                """
-                INSERT INTO temp_email_messages (
-                    message_id, email_address, from_address, subject, content, html_content, has_html, timestamp
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    "html-only-message",
-                    "html-temp@example.com",
-                    "sender@example.com",
-                    "HTML only",
-                    "",
-                    "<div>Hello <strong>HTML</strong> world</div>",
-                    1,
-                    1772407200,
-                ),
-            )
-            get_db().commit()
-
-            with (
-                patch.dict(
-                    os.environ,
-                    {
-                        "EMAIL_NOTIFICATION_SMTP_HOST": "smtp.example.com",
-                        "EMAIL_NOTIFICATION_SMTP_PORT": "587",
-                        "EMAIL_NOTIFICATION_FROM": "noreply@example.com",
-                    },
-                    clear=False,
-                ),
-                patch(
-                    "outlook_web.services.notification_dispatch.TempMailService.list_messages",
-                    return_value=[],  # 跳过远端 sync；DB 中已直接插入测试邮件
-                ),
-                patch("outlook_web.services.notification_dispatch.send_business_email_notification") as send_mock,
-            ):
-                notification_dispatch.run_email_notification_job(self.app)
-
-            send_mock.assert_called_once()
-            sent_message = send_mock.call_args[0][1]
-            self.assertEqual(sent_message["content"], "Hello HTML world")
-            self.assertEqual(sent_message["preview"], "Hello HTML world")
 
     def test_claim_delivery_attempt_is_atomic_for_same_message(self):
         with self.app.app_context():
