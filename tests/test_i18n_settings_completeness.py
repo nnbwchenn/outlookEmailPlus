@@ -45,16 +45,18 @@ class SettingsI18nCompletenessTests(unittest.TestCase):
         self._assert_exact_map_entry(js, "基础设置", "Basic Settings")
 
     def test_basic_settings_with_emoji_has_translation(self):
+        # emoji 已替换为 SVG,键不再带 emoji 前缀
         js = self._get_i18n_js()
-        self._assert_exact_map_entry(js, "⚙️ 基础设置", "⚙️ Basic Settings")
+        self._assert_exact_map_entry(js, "基础设置", "Basic Settings")
 
     def test_ai_enhancement_no_space_has_translation(self):
         js = self._get_i18n_js()
         self._assert_exact_map_entry(js, "验证码AI增强", "Verification Code AI Enhancement")
 
     def test_ai_enhancement_with_emoji_has_translation(self):
+        # emoji 已替换为 SVG,键不再带 emoji 前缀
         js = self._get_i18n_js()
-        self._assert_exact_map_entry(js, "🤖 验证码 AI 增强", "🤖 Verification Code AI Enhancement")
+        self._assert_exact_map_entry(js, "验证码 AI 增强", "Verification Code AI Enhancement")
 
     def test_ai_enhancement_toggle_no_space_has_translation(self):
         js = self._get_i18n_js()
@@ -97,8 +99,9 @@ class SettingsI18nCompletenessTests(unittest.TestCase):
         self._assert_exact_map_entry(js, "测试 AI 配置", "Test AI Configuration")
 
     def test_test_ai_config_with_emoji_has_translation(self):
+        # emoji 已替换为 SVG,键不再带 emoji 前缀
         js = self._get_i18n_js()
-        self._assert_exact_map_entry(js, "🤖 测试 AI 配置", "🤖 Test AI Configuration")
+        self._assert_exact_map_entry(js, "测试 AI 配置", "Test AI Configuration")
 
     def test_save_before_test_hint_has_translation(self):
         js = self._get_i18n_js()
@@ -107,21 +110,12 @@ class SettingsI18nCompletenessTests(unittest.TestCase):
     # ── 变体一致性 ──
 
     def test_ai_enhancement_variants_share_same_translation(self):
-        """无空格/有emoji两种变体应映射到相同的英文翻译（仅 emoji 不同）"""
+        """emoji 已替换为 SVG,键不再带 emoji 前缀;仅保留标准键并映射到统一英文翻译"""
         js = self._get_i18n_js()
-        # 提取两个映射的值，确认核心翻译一致
-        pattern_no_emoji = r"'验证码AI增强'\s*:\s*'([^']+)'"
-        pattern_with_emoji = r"'🤖 验证码 AI 增强'\s*:\s*'([^']+)'"
-        match1 = re.search(pattern_no_emoji, js)
-        match2 = re.search(pattern_with_emoji, js)
-        self.assertIsNotNone(match1, "应存在 '验证码AI增强' 映射")
-        self.assertIsNotNone(match2, "应存在 '🤖 验证码 AI 增强' 映射")
-        # 核心翻译应一致（一个带 emoji 前缀，一个不带）
-        self.assertEqual(
-            match1.group(1).replace("🤖 ", ""),
-            match2.group(1).replace("🤖 ", ""),
-            "两种变体的核心英文翻译应一致",
-        )
+        pattern = r"'验证码 AI 增强'\s*:\s*'([^']+)'"
+        match = re.search(pattern, js)
+        self.assertIsNotNone(match, "应存在 '验证码 AI 增强' 映射")
+        self.assertEqual(match.group(1), "Verification Code AI Enhancement")
 
 
 if __name__ == "__main__":

@@ -162,7 +162,6 @@ function renderOverviewError(tabId) {
 function syncOverviewStaticText() {
     const textMap = {
         'ov-page-eyebrow': '玻璃态概览面板',
-        'ov-page-badge': '细腻卡片视图',
         'ov-page-subtitle': '账号、验证码、对外 API、邮箱池与系统活动统一看板',
         'ov-refresh-label': '最近刷新：'
     };
@@ -175,12 +174,26 @@ function syncOverviewStaticText() {
 
     const titleEl = document.getElementById('ov-page-title');
     if (titleEl) {
-        titleEl.textContent = `📊 ${ovT('数据概览')}`;
+        // 保留已有的 SVG 图标，只更新文字部分
+        const svg = titleEl.querySelector('svg');
+        if (svg) {
+            // 移除 svg 后剩余文本节点，再追加新文字
+            Array.from(titleEl.childNodes).forEach(n => { if (n.nodeType === 3) n.remove(); });
+            titleEl.appendChild(document.createTextNode(` ${ovT('数据概览')}`));
+        } else {
+            titleEl.textContent = ovT('数据概览');
+        }
     }
 
     const refreshBtn = document.getElementById('ov-refresh-btn');
     if (refreshBtn) {
-        refreshBtn.textContent = `⟳ ${ovT('刷新')}`;
+        const svg = refreshBtn.querySelector('svg');
+        if (svg) {
+            Array.from(refreshBtn.childNodes).forEach(n => { if (n.nodeType === 3) n.remove(); });
+            refreshBtn.appendChild(document.createTextNode(` ${ovT('刷新')}`));
+        } else {
+            refreshBtn.textContent = ovT('刷新');
+        }
     }
 
     const tabLabels = {
@@ -502,10 +515,9 @@ function renderActivityStats(data) {
     renderTimeline(document.getElementById('ov-activity-timeline'), timeline);
 }
 
-function renderKpiCard(label, value, note, tone, hoverNote = '') {
+function renderKpiCard(label, value, note, tone) {
     return `
         <div class="kpi-card ${tone || ''} ov-hover-card">
-            ${renderHoverNote(hoverNote)}
             <div class="kpi-head">
                 <span class="kpi-icon">${esc(pickToneGlyph(tone))}</span>
                 <div class="kpi-label">${esc(ovT(label))}</div>
@@ -748,11 +760,19 @@ function formatPoolActionLabel(value) {
 
 function pickTimelineIcon(action) {
     const text = String(action || '').toLowerCase();
-    if (text.includes('verification')) return '🔑';
-    if (text.includes('notification')) return '📣';
-    if (text.includes('external')) return '🌐';
-    if (text.includes('pool') || text.includes('claim') || text.includes('release') || text.includes('complete')) return '🎱';
-    return '📋';
+    // 统一返回内联 SVG（Feather 风格）
+    const ICONS = {
+        verification: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
+        notification: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+        external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+        pool: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+        default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+    };
+    if (text.includes('verification')) return ICONS.verification;
+    if (text.includes('notification')) return ICONS.notification;
+    if (text.includes('external')) return ICONS.external;
+    if (text.includes('pool') || text.includes('claim') || text.includes('release') || text.includes('complete')) return ICONS.pool;
+    return ICONS.default;
 }
 
 function pickToneGlyph(tone) {

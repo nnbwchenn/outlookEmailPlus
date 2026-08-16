@@ -14,7 +14,7 @@
     <div id="auth-page">
         <div class="auth-card">
             <div class="auth-logo">
-                <div class="logo-icon">📬</div>
+                <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
                 <h1>Outlook 邮件管理</h1>
                 <p>安全登录以管理您的邮箱账号</p>
             </div>
@@ -26,7 +26,7 @@
                     <label class="form-label" for="password">登录密码</label>
                     <input type="password" class="form-input" id="password" placeholder="请输入密码" autofocus required>
                 </div>
-                <button type="submit" class="btn btn-primary" id="loginBtn" style="width:100%; padding:0.7rem; font-size:0.95rem;">登 录</button>
+                <button type="submit" class="btn btn-primary" id="loginBtn" style="width:100%; padding:0.7rem; font-size:0.95rem; display:flex; align-items:center; justify-content:center; gap:0.4rem;">登录</button>
             </form>
 
             <p style="text-align:center; font-size:0.72rem; color:var(--text-muted); margin-top:1.5rem;">
@@ -37,23 +37,40 @@
 
     <script src="/static/js/i18n.js"></script>
     <script>
+        const loginBtn = document.getElementById('loginBtn');
+
+        function setLoginBtnLoading(loading) {
+            if (loading) {
+                loginBtn.disabled = true;
+                loginBtn.classList.add('btn-loading');
+                loginBtn.innerHTML =
+                    '<span class="spinner"></span><span>' + translateAppText('登录中...') + '</span>';
+            } else {
+                loginBtn.disabled = false;
+                loginBtn.classList.remove('btn-loading');
+                loginBtn.textContent = translateAppText('登录');
+            }
+        }
+
+        function showLoginError(text) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = text;
+            errorMessage.style.display = 'block';
+        }
+
         async function handleLogin(event) {
             event.preventDefault();
             const password = document.getElementById('password').value;
-            const loginBtn = document.getElementById('loginBtn');
-            const errorMessage = document.getElementById('errorMessage');
             const pickApiMessage = window.pickApiMessage || ((payload, zh) => zh);
             const translateText = window.translateAppText || ((text) => text);
 
             if (!password) {
-                errorMessage.textContent = translateText('请输入密码');
-                errorMessage.style.display = 'block';
+                showLoginError(translateText('请输入密码'));
                 return;
             }
 
-            loginBtn.disabled = true;
-            loginBtn.textContent = translateText('登录中...');
-            errorMessage.style.display = 'none';
+            setLoginBtnLoading(true);
+            document.getElementById('errorMessage').style.display = 'none';
 
             try {
                 const response = await fetch('/login', {
@@ -64,21 +81,19 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    // 成功：保持按钮禁用（防止重复提交），直接跳转
+                    loginBtn.innerHTML = '<span class="spinner"></span><span>' + translateText('登录中...') + '</span>';
                     window.location.href = '/';
                 } else {
                     const msg = (data.error && typeof data.error === 'object')
                         ? pickApiMessage(data.error, '登录失败', 'Login failed')
                         : translateText(data.error || '登录失败');
-                    errorMessage.textContent = msg;
-                    errorMessage.style.display = 'block';
-                    loginBtn.disabled = false;
-                    loginBtn.textContent = translateText('登 录');
+                    showLoginError(msg);
+                    setLoginBtnLoading(false);
                 }
             } catch (error) {
-                errorMessage.textContent = translateText('网络错误，请重试');
-                errorMessage.style.display = 'block';
-                loginBtn.disabled = false;
-                loginBtn.textContent = translateText('登 录');
+                showLoginError(translateText('网络错误，请重试'));
+                setLoginBtnLoading(false);
             }
         }
 

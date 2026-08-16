@@ -384,7 +384,14 @@
             document.documentElement.dataset.theme = theme;
             localStorage.setItem('ol_theme', theme);
             const btn = document.getElementById('themeToggleBtn');
-            if (btn) btn.textContent = theme === 'dark' ? '☀ 浅色模式' : '☾ 深色模式';
+            if (btn) {
+                // 图标代表目标主题：浅色下显示月亮（切到深色），深色下显示太阳（切到浅色）
+                btn.querySelectorAll('.theme-icon-sun').forEach(el => el.style.display = theme === 'dark' ? '' : 'none');
+                btn.querySelectorAll('.theme-icon-moon').forEach(el => el.style.display = theme === 'dark' ? 'none' : '');
+                // 文字：深色模式下显示「浅色模式」（点击切换到浅色），浅色模式下显示「深色模式」
+                const label = btn.querySelector('.theme-label');
+                if (label) label.textContent = translateAppTextLocal(theme === 'dark' ? '浅色模式' : '深色模式');
+            }
         }
 
         function toggleTheme() {
@@ -470,8 +477,8 @@
                     ` : `
                         ${switcherHtml}
                         <button class="btn-inline primary" onclick="showAddAccountModal()">＋ 添加账号</button>
-                        <button class="btn-inline ghost" onclick="showExportModal()">📤 导出</button>
-                        <button class="btn-inline ghost" onclick="showRefreshModal()">🔄 全量刷新 Token</button>
+                        <button class="btn-inline ghost" onclick="showExportModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>导出</button>
+                        <button class="btn-inline ghost" onclick="showRefreshModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>全量刷新 Token</button>
                     `;
                     actionsEl.classList.toggle('topbar-actions-compact', isCompactMode);
                     if (subtitleEl) {
@@ -683,6 +690,123 @@
             }
         }
         window.addEventListener('resize', handleResponsiveGroups, { passive: true });
+
+        // ==================== 平板顶栏“更多”菜单 ====================
+        // 平板(769-1024px)下侧栏为顶部横向导航，空间不足时显示「更多」按钮。
+        // 点击按钮弹出下拉菜单，竖向排列当前未显示（被滚动隐藏）的导航项。
+
+        function updateNavMoreHint() {
+            const sidebar = document.getElementById('sidebar');
+            const nav = sidebar ? sidebar.querySelector('.sidebar-nav') : null;
+            if (!sidebar || !nav) return;
+            const isTablet = window.innerWidth > 768 && window.innerWidth <= 1024;
+            if (!isTablet) {
+                sidebar.classList.remove('has-more');
+                closeNavMoreMenu();
+                return;
+            }
+            // 只要可滚动就显示「更多」按钮（点击后菜单列出隐藏项）
+            const canScroll = nav.scrollWidth > nav.clientWidth + 4;
+            sidebar.classList.toggle('has-more', canScroll);
+            if (canScroll) fillNavMoreMenu();
+            else closeNavMoreMenu();
+        }
+
+        function fillNavMoreMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const nav = sidebar ? sidebar.querySelector('.sidebar-nav') : null;
+            const menu = document.getElementById('navMoreMenu');
+            if (!nav || !menu) return;
+            // 计算可见范围内的项：完全在 nav 可视区内的项视为已显示
+            const navRect = nav.getBoundingClientRect();
+            const hiddenItems = [];
+            nav.querySelectorAll('.nav-item[data-page]').forEach((item) => {
+                const r = item.getBoundingClientRect();
+                // 左边界在 nav 左侧之外，或右边界超出 nav 右侧（未显示完整）
+                if (r.left < navRect.left - 2 || r.right > navRect.right + 2) {
+                    hiddenItems.push(item);
+                }
+            });
+            // 克隆隐藏项到菜单
+            menu.innerHTML = '';
+            hiddenItems.forEach((item) => {
+                const clone = item.cloneNode(true);
+                // 清除克隆项的内联 onclick，统一走下面的事件绑定
+                clone.removeAttribute('onclick');
+                clone.addEventListener('click', () => {
+                    closeNavMoreMenu();
+                    const page = clone.dataset.page;
+                    if (page) {
+                        navigate(page);
+                    } else {
+                        // Token 工具等无 data-page 项，触发原导航项的点击
+                        const orig = item;
+                        if (orig && orig.onclick) orig.onclick.call(orig);
+                    }
+                });
+                menu.appendChild(clone);
+            });
+        }
+
+        function closeNavMoreMenu() {
+            const menu = document.getElementById('navMoreMenu');
+            const btn = document.getElementById('navMoreBtn');
+            if (menu) menu.classList.remove('open');
+            if (btn) {
+                btn.classList.remove('open');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        function toggleNavMoreMenu() {
+            const menu = document.getElementById('navMoreMenu');
+            const btn = document.getElementById('navMoreBtn');
+            if (!menu || !btn) return;
+            const isOpen = menu.classList.contains('open');
+            if (isOpen) {
+                closeNavMoreMenu();
+            } else {
+                fillNavMoreMenu();
+                // 先显示（不可见）以测量宽度，再居中定位到按钮正下方
+                menu.classList.add('open');
+                btn.classList.add('open');
+                btn.setAttribute('aria-expanded', 'true');
+                const rect = btn.getBoundingClientRect();
+                const menuWidth = menu.offsetWidth;
+                let left = rect.left + rect.width / 2 - menuWidth / 2;
+                // 防止超出左/右视口边缘
+                const maxLeft = window.innerWidth - menuWidth - 8;
+                left = Math.max(8, Math.min(left, maxLeft));
+                menu.style.left = left + 'px';
+                menu.style.right = 'auto';
+                menu.style.top = (rect.bottom + 4) + 'px';
+            }
+        }
+
+        function initNavMoreHint() {
+            const nav = document.getElementById('sidebar')
+                ? document.getElementById('sidebar').querySelector('.sidebar-nav')
+                : null;
+            if (!nav) return;
+            updateNavMoreHint();
+            nav.addEventListener('scroll', updateNavMoreHint, { passive: true });
+            window.addEventListener('resize', updateNavMoreHint, { passive: true });
+            const btn = document.getElementById('navMoreBtn');
+            if (btn) btn.addEventListener('click', toggleNavMoreMenu);
+            // 点击菜单外部关闭
+            document.addEventListener('click', (e) => {
+                const menu = document.getElementById('navMoreMenu');
+                const btnEl = document.getElementById('navMoreBtn');
+                if (menu && menu.classList.contains('open')) {
+                    if (!menu.contains(e.target) && !(btnEl && btnEl.contains(e.target))) {
+                        closeNavMoreMenu();
+                    }
+                }
+            });
+            // 导航项内容可能因登录态(OAuth 工具)变化，页面切换后复查
+            setTimeout(updateNavMoreHint, 300);
+            setTimeout(updateNavMoreHint, 1000);
+        }
 
         // ==================== 移动端下钻式导航 ====================
         // 手机端(≤768px)一次只显示一层：分组列表(level 0) → 账号列表(level 1) → 邮件列表(level 2)
@@ -949,12 +1073,10 @@
             initEmailListScroll();
             initResizeHandles();
             handleResponsiveGroups();
+            initNavMoreHint();
 
             // 初始化轮询设置
             initPollingSettings();
-
-            // 初始化“一键更新配置”更新方式切换显隐逻辑（避免 index.html 内联脚本）
-            initUpdateMethodConfigToggles();
 
             // 请求浏览器通知权限
             if ('Notification' in window && Notification.permission === 'default') {
@@ -1117,7 +1239,7 @@
                 // 清空邮件列表，显示提示
                 document.getElementById('emailList').innerHTML = `
                     <div class="empty-state">
-                        <span class="empty-icon">📬</span>
+                        <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
                         <p>${translateAppTextLocal(folder === 'inbox' ? '点击"获取邮件"按钮获取收件箱' : '点击"获取邮件"按钮获取垃圾邮件')}</p>
                     </div>
                 `;
@@ -1476,49 +1598,6 @@ ${details}
 
         // ==================== 设置相关 ====================
 
-        // ==================== 一键更新配置（更新方式切换） ====================
-
-        function toggleUpdateMethodConfig() {
-            const watchtowerConfigArea = document.getElementById('watchtowerConfigArea');
-            const dockerApiWarning = document.getElementById('dockerApiWarning');
-            if (!watchtowerConfigArea || !dockerApiWarning) return;
-
-            const selectedMethod = document.querySelector('input[name="updateMethod"]:checked')?.value;
-            if (selectedMethod === 'docker_api') {
-                watchtowerConfigArea.style.display = 'none';
-                dockerApiWarning.style.display = 'block';
-            } else {
-                watchtowerConfigArea.style.display = 'block';
-                dockerApiWarning.style.display = 'none';
-            }
-        }
-
-        function initUpdateMethodConfigToggles() {
-            try {
-                const updateMethodRadios = document.getElementsByName('updateMethod');
-                if (!updateMethodRadios || updateMethodRadios.length === 0) {
-                    return;
-                }
-
-                updateMethodRadios.forEach((radio) => {
-                    if (!radio) return;
-                    // 防止重复绑定（某些情况下可能多次初始化）
-                    if (radio.dataset && radio.dataset.boundUpdateMethodToggle === 'true') {
-                        return;
-                    }
-                    radio.addEventListener('change', toggleUpdateMethodConfig);
-                    if (radio.dataset) {
-                        radio.dataset.boundUpdateMethodToggle = 'true';
-                    }
-                });
-
-                // 初始化时调用一次，确保初始显隐正确
-                toggleUpdateMethodConfig();
-            } catch (e) {
-                // 静默失败：不影响其它功能
-            }
-        }
-
         // 显示设置模态框
         async function showSettingsModal() {
             document.getElementById('settingsModal').classList.add('show');
@@ -1725,157 +1804,12 @@ ${details}
                         webhookTokenEl.dataset.maskedValue = webhookMasked;
                         webhookTokenEl.dataset.isSet = webhookMasked ? 'true' : 'false';
                     }
-
-                    // 加载 Watchtower 一键更新设置
-                    const wtUrl = document.getElementById('watchtowerUrl');
-                    const wtToken = document.getElementById('watchtowerToken');
-                    if (wtUrl) wtUrl.value = (data.settings && data.settings.watchtower_url) || '';
-                    if (wtToken) wtToken.value = (data.settings && data.settings.watchtower_token) || '';
-                    
-                    // 加载更新方式设置
-                    const updateMethod = (data.settings && data.settings.update_method) || 'watchtower';
-                    const updateMethodRadios = document.getElementsByName('updateMethod');
-                    updateMethodRadios.forEach(radio => {
-                        radio.checked = (radio.value === updateMethod);
-                    });
-
-                    // 触发更新方式切换逻辑（index.html 内联脚本绑定了 change 事件）
-                    // 注意：直接设置 radio.checked 不会触发 change，需手动派发事件以更新显隐。
-                    try {
-                        const selectedUpdateMethodRadio = document.querySelector('input[name="updateMethod"]:checked');
-                        if (selectedUpdateMethodRadio) {
-                            selectedUpdateMethodRadio.dispatchEvent(new Event('change'));
-                        }
-                    } catch (e) {
-                        // 静默失败
-                    }
-
-                    // 加载部署信息警告（用于一键更新的部署提示）
-                    loadDeploymentInfo({ silent: true });
                 }
             } catch (error) {
                 console.error('loadSettings error:', error);
                 showToast(translateAppTextLocal('加载设置失败'), 'error');
             }
         }
-
-        // ==================== 部署信息检测（用于一键更新提示） ====================
-
-        // 缓存最近一次部署信息，用于语言切换时重渲染
-        let lastDeploymentInfo = null;
-
-        function pickDeploymentWarningText(warning, keyZh, keyEn) {
-            if (!warning || typeof warning !== 'object') return '';
-            const zh = String(warning[keyZh] || '').trim();
-            const en = String(warning[keyEn] || '').trim();
-            return getUiLanguage() === 'en' ? (en || zh) : (zh || en);
-        }
-
-        function normalizeDeploymentWarningSeverity(severityRaw) {
-            const normalized = String(severityRaw || 'info').trim().toLowerCase();
-            if (normalized === 'error' || normalized === 'warning' || normalized === 'info') return normalized;
-            // 兼容后端可能返回的其它值
-            return 'info';
-        }
-
-        function buildDeploymentWarningStyle(severity) {
-            // 统一用 CSS 变量，兼容浅色/深色主题
-            if (severity === 'error') {
-                return {
-                    color: 'var(--clr-danger)',
-                    background: 'rgba(192,57,43,0.08)',
-                    icon: '⛔'
-                };
-            }
-            if (severity === 'warning') {
-                return {
-                    color: 'var(--clr-warn)',
-                    background: 'rgba(230,126,34,0.08)',
-                    icon: '⚠️'
-                };
-            }
-            return {
-                color: 'var(--clr-accent)',
-                background: 'rgba(200,150,62,0.08)',
-                icon: 'ℹ️'
-            };
-        }
-
-        function renderDeploymentWarnings(deployment) {
-            const container = document.getElementById('deploymentWarnings');
-            if (!container) return;
-
-            const warnings = Array.isArray(deployment && deployment.warnings) ? deployment.warnings : [];
-            if (warnings.length === 0) {
-                container.innerHTML = '';
-                return;
-            }
-
-            const html = warnings.map((warning) => {
-                const severity = normalizeDeploymentWarningSeverity(warning && warning.severity);
-                const style = buildDeploymentWarningStyle(severity);
-
-                const title = pickDeploymentWarningText(warning, 'message', 'message_en');
-                const suggestion = pickDeploymentWarningText(warning, 'suggestion', 'suggestion_en');
-
-                const suggestionHtml = suggestion
-                    ? `<div style="margin-top:6px;font-size:0.78rem;color:var(--text-muted);">
-                            <strong>${escapeHtml(translateAppTextLocal('处理建议'))}：</strong>${escapeHtml(suggestion)}
-                       </div>`
-                    : '';
-
-                return `
-                    <div class="form-hint" style="background:${style.background}; padding: 12px; border-radius: 6px; border-left: 3px solid ${style.color}; margin-bottom: 10px;">
-                        <div style="display:flex; gap: 10px; align-items:flex-start;">
-                            <div style="font-size: 1rem; line-height: 1.2;">${style.icon}</div>
-                            <div style="flex: 1;">
-                                <div style="font-weight: 600; color: var(--text);">${escapeHtml(title)}</div>
-                                ${suggestionHtml}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            container.innerHTML = html;
-        }
-
-        async function loadDeploymentInfo({ silent = true } = {}) {
-            const container = document.getElementById('deploymentWarnings');
-            if (!container) return;
-
-            try {
-                const res = await fetch('/api/system/deployment-info', { cache: 'no-store' });
-                if (!res.ok) return;
-                const data = await res.json();
-                if (!data || !data.success || !data.deployment) {
-                    if (!silent) {
-                        handleApiError(data || { success: false, error: '请求失败' }, '请求失败');
-                    }
-                    return;
-                }
-
-                lastDeploymentInfo = data.deployment;
-                renderDeploymentWarnings(lastDeploymentInfo);
-
-                // 根据后端推荐的更新方式自动选择 radio
-                const recommended = data.deployment.recommended_method;
-                if (recommended) {
-                    const radios = document.getElementsByName('updateMethod');
-                    radios.forEach(radio => {
-                        if (radio.value === recommended) {
-                            radio.checked = true;
-                            radio.dispatchEvent(new Event('change'));
-                        }
-                    });
-                }
-            } catch (e) {
-                if (!silent) {
-                    showToast(`${translateAppTextLocal('请求失败')}: ${e.message}`, 'error');
-                }
-            }
-        }
-
         // 切换刷新策略
         function toggleRefreshStrategy() {
             const strategy = document.querySelector('input[name="refreshStrategy"]:checked').value;
@@ -2179,22 +2113,6 @@ ${details}
                 settings.webhook_notification_token = webhookToken;
             }
 
-            // Watchtower 一键更新配置
-            const wtUrlEl = document.getElementById('watchtowerUrl');
-            const wtTokenEl = document.getElementById('watchtowerToken');
-            const wtUrl = wtUrlEl ? wtUrlEl.value.trim() : '';
-            const wtToken = wtTokenEl ? wtTokenEl.value.trim() : '';
-            settings.watchtower_url = wtUrl;
-            if (wtToken) {
-                settings.watchtower_token = wtToken;
-            }
-            
-            // 更新方式配置
-            const updateMethodRadio = document.querySelector('input[name="updateMethod"]:checked');
-            if (updateMethodRadio) {
-                settings.update_method = updateMethodRadio.value;
-            }
-
             try {
                 const response = await fetch('/api/settings', {
                     method: 'PUT',
@@ -2231,7 +2149,7 @@ ${details}
             } catch (e) {
                 showToast(`${translateAppTextLocal('请求失败')}: ${e.message}`, 'error');
             } finally {
-                if (btn) { btn.disabled = false; btn.textContent = translateAppTextLocal('📨 发送测试消息'); }
+                if (btn) { btn.disabled = false; btn.textContent = translateAppTextLocal('发送测试消息'); }
             }
         }
 
@@ -2257,41 +2175,7 @@ ${details}
             } catch (e) {
                 if (resultEl) { resultEl.textContent = `❌ ${e.message}`; resultEl.style.color = 'var(--danger, red)'; }
             } finally {
-                if (btn) { btn.disabled = false; btn.textContent = translateAppTextLocal('🔗 测试连通性'); }
-            }
-        }
-
-        async function testWatchtower() {
-            const btn = document.getElementById('btnTestWatchtower');
-            const resultEl = document.getElementById('watchtowerTestResult');
-            const urlInput = document.getElementById('watchtowerUrl');
-            const tokenInput = document.getElementById('watchtowerToken');
-            const wtUrl = urlInput ? urlInput.value.trim() : '';
-            const wtToken = tokenInput ? tokenInput.value.trim() : '';
-            if (btn) { btn.disabled = true; btn.textContent = translateAppTextLocal('⏳ 测试中…'); }
-            if (resultEl) resultEl.textContent = '';
-            try {
-                const body = {};
-                if (wtUrl) body.url = wtUrl;
-                if (wtToken && !wtToken.startsWith('****')) body.token = wtToken;
-                const resp = await fetch('/api/system/test-watchtower', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCSRFToken()
-                    },
-                    body: JSON.stringify(body)
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    if (resultEl) { resultEl.textContent = translateAppTextLocal('✅ 连通正常'); resultEl.style.color = 'var(--success, green)'; }
-                } else {
-                    if (resultEl) { resultEl.textContent = `❌ ${data.message || translateAppTextLocal('失败')}`; resultEl.style.color = 'var(--danger, red)'; }
-                }
-            } catch (e) {
-                if (resultEl) { resultEl.textContent = `❌ ${e.message}`; resultEl.style.color = 'var(--danger, red)'; }
-            } finally {
-                if (btn) { btn.disabled = false; btn.textContent = translateAppTextLocal('🔗 测试连通性'); }
+                if (btn) { btn.disabled = false; btn.textContent = translateAppTextLocal('测试连通性'); }
             }
         }
 
@@ -2309,7 +2193,7 @@ ${details}
             } catch (e) {
                 showToast(`${translateAppTextLocal('请求失败')}: ${e.message}`, 'error');
             } finally {
-                if (btn) { btn.disabled = false; btn.textContent = translateAppTextLocal('📨 发送测试邮件'); }
+                if (btn) { btn.disabled = false; btn.textContent = translateAppTextLocal('发送测试邮件'); }
             }
         }
 
@@ -2468,7 +2352,7 @@ ${details}
                 }
                 showToast(msg, 'error');
             } finally {
-                if (btn) { btn.disabled = false; btn.textContent = translateAppTextLocal('🤖 测试 AI 配置'); }
+                if (btn) { btn.disabled = false; btn.textContent = translateAppTextLocal('测试 AI 配置'); }
             }
         }
 
@@ -2761,13 +2645,13 @@ ${details}
             const refreshAllBtn = document.getElementById('refreshAllBtn');
             if (refreshAllBtn) {
                 refreshAllBtn.disabled = false;
-                refreshAllBtn.textContent = translateAppTextLocal('🔄 全量刷新');
+                refreshAllBtn.textContent = translateAppTextLocal('全量刷新');
             }
 
             const retryFailedBtn = document.getElementById('retryFailedBtn');
             if (retryFailedBtn) {
                 retryFailedBtn.disabled = false;
-                retryFailedBtn.textContent = translateAppTextLocal('🔁 重试失败');
+                retryFailedBtn.textContent = translateAppTextLocal('重试失败');
             }
         }
 
@@ -3061,7 +2945,7 @@ ${details}
                             eventSource.close();
                             progress.style.display = 'none';
                             btn.disabled = false;
-                            btn.textContent = translateAppTextLocal('🔄 全量刷新');
+                            btn.textContent = translateAppTextLocal('全量刷新');
 
                             const invalidTokenFailedCount = Number(data.invalid_token_failed_count || 0);
                             latestInvalidTokenDetectedCount = invalidTokenFailedCount;
@@ -3102,7 +2986,7 @@ ${details}
                             eventSource.close();
                             progress.style.display = 'none';
                             btn.disabled = false;
-                            btn.textContent = translateAppTextLocal('🔄 全量刷新');
+                            btn.textContent = translateAppTextLocal('全量刷新');
 
                             const errCode = data.error && data.error.code;
                             if (errCode === 'NO_MAIL_PERMISSION') {
@@ -3129,14 +3013,14 @@ ${details}
                     eventSource.close();
                     progress.style.display = 'none';
                     btn.disabled = false;
-                    btn.textContent = translateAppTextLocal('🔄 全量刷新');
+                    btn.textContent = translateAppTextLocal('全量刷新');
                     showToast(translateAppTextLocal('刷新过程中出现错误'), 'error');
                 };
 
             } catch (error) {
                 progress.style.display = 'none';
                 btn.disabled = false;
-                btn.textContent = translateAppTextLocal('🔄 全量刷新');
+                btn.textContent = translateAppTextLocal('全量刷新');
                 showToast(translateAppTextLocal('刷新请求失败'), 'error');
             }
         }
@@ -3195,7 +3079,7 @@ ${details}
 
                 progress.style.display = 'none';
                 btn.disabled = false;
-                btn.textContent = translateAppTextLocal('🔁 重试失败');
+                btn.textContent = translateAppTextLocal('重试失败');
 
                 if (data.success) {
                     if (data.total === 0) {
@@ -3243,7 +3127,7 @@ ${details}
             } catch (error) {
                 progress.style.display = 'none';
                 btn.disabled = false;
-                btn.textContent = translateAppTextLocal('🔁 重试失败');
+                btn.textContent = translateAppTextLocal('重试失败');
                 showToast(translateAppTextLocal('重试请求失败'), 'error');
             }
         }
@@ -3451,10 +3335,10 @@ ${details}
                         </div>
                     `;
                 } else {
-                    container.innerHTML = `<div class="empty-state"><span class="empty-icon">📭</span><p>${translateAppTextLocal('暂无刷新记录')}</p></div>`;
+                    container.innerHTML = `<div class="empty-state"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><p>${translateAppTextLocal('暂无刷新记录')}</p></div>`;
                 }
             } catch (error) {
-                container.innerHTML = `<div class="empty-state"><span class="empty-icon">⚠️</span><p>${translateAppTextLocal('加载刷新历史失败')}</p></div>`;
+                container.innerHTML = `<div class="empty-state"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><p>${translateAppTextLocal('加载刷新历史失败')}</p></div>`;
             }
         }
 
@@ -3536,10 +3420,10 @@ ${details}
                         </div>
                     `;
                 } else {
-                    container.innerHTML = `<div class="empty-state"><span class="empty-icon">📭</span><p>${translateAppTextLocal('暂无审计记录')}</p></div>`;
+                    container.innerHTML = `<div class="empty-state"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><p>${translateAppTextLocal('暂无审计记录')}</p></div>`;
                 }
             } catch (error) {
-                container.innerHTML = `<div class="empty-state"><span class="empty-icon">⚠️</span><p>${translateAppTextLocal('加载审计日志失败')}</p></div>`;
+                container.innerHTML = `<div class="empty-state"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><p>${translateAppTextLocal('加载审计日志失败')}</p></div>`;
             }
         }
 
@@ -3766,13 +3650,6 @@ ${details}
         window.addEventListener('ui-language-changed', () => {
             updateTopbar(currentPage);
             updateBatchActionBar();
-
-            // 语言切换后，重渲染部署警告文案（后端同时返回中英文）
-            if (lastDeploymentInfo) {
-                try {
-                    renderDeploymentWarnings(lastDeploymentInfo);
-                } catch (e) {}
-            }
         });
 
         // 显示批量刷新 Token 确认框
@@ -3824,7 +3701,7 @@ ${details}
 
             // 显示常驻进度 Toast
             const toastId = 'batch-refresh-toast-' + Date.now();
-            showPersistentToast(toastId, `🔄 正在刷新 Token... 0 / ${accountIds.length}`);
+            showPersistentToast(toastId, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> 正在刷新 Token... 0 / ${accountIds.length}`);
 
             const controller = new AbortController();
             const OVERALL_TIMEOUT_MS = 120000; // 2 分钟整体超时
@@ -4011,15 +3888,15 @@ ${details}
         function handleBatchRefreshSSEEvent(data, toastId, totalCount) {
             if (data.type === 'start') {
                 const total = data.total;
-                updatePersistentToast(toastId, `🔄 正在刷新 Token... 0 / ${total}`);
+                updatePersistentToast(toastId, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> 正在刷新 Token... 0 / ${total}`);
 
             } else if (data.type === 'progress') {
                 if (data.result === 'processing') {
                     // 刚开始处理该账号
-                    updatePersistentToast(toastId, `🔄 正在刷新 Token... ${data.current - 1} / ${data.total}`);
+                    updatePersistentToast(toastId, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> 正在刷新 Token... ${data.current - 1} / ${data.total}`);
                 } else {
                     // 该账号刷新完成（success 或 failed）
-                    updatePersistentToast(toastId, `🔄 正在刷新 Token... ${data.current} / ${data.total}`);
+                    updatePersistentToast(toastId, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> 正在刷新 Token... ${data.current} / ${data.total}`);
                     // 更新对应账号卡片状态
                     if (data.account_id) {
                         updateAccountCardRefreshStatus(data.account_id, data.result, data.last_refresh_at, data.error_message);
@@ -4517,264 +4394,4 @@ ${details}
         function dismissVersionBanner() {
             document.getElementById('versionUpdateBanner').classList.add('d-none');
             document.getElementById('app').style.paddingTop = '';
-        }
-
-        /**
-         * 用户点击"立即更新"时触发
-         */
-        async function triggerUpdate() {
-            const btn = document.getElementById('btnTriggerUpdate');
-            btn.disabled = true;
-            btn.textContent = translateAppTextLocal('正在触发更新...');
-
-            // 获取更新方式（从设置中读取或默认为 watchtower）
-            let updateMethod = 'watchtower';
-            try {
-                const settingsRes = await fetch('/api/settings');
-                const settingsData = await settingsRes.json();
-                if (settingsData.success && settingsData.settings) {
-                    updateMethod = settingsData.settings.update_method || 'watchtower';
-                }
-            } catch (e) {
-                console.warn('Failed to load update method, using default (watchtower):', e);
-            }
-
-            try {
-                // 根据更新方式决定 timeout 和 URL
-                const timeout = updateMethod === 'docker_api' ? 120000 : 60000;  // Docker API 模式 120s, Watchtower 模式 60s
-                const url = `/api/system/trigger-update?method=${updateMethod}`;
-                
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), timeout);
-                
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': getCSRFToken() },
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-                
-                const data = await res.json();
-                if (data.success) {
-                    // 镜像已是最新，无需等待重启
-                    if (data.already_latest) {
-                        showToast(translateAppTextLocal('当前已是最新版本，无需更新'), 'info', 5000);
-                        btn.disabled = false;
-                        btn.textContent = translateAppTextLocal('立即更新');
-                        return;
-                    }
-
-                    // 记录本次更新方式，供 waitForRestart 调整等待时长
-                    try {
-                        window.__lastUpdateMethod = updateMethod;
-                    } catch (e) {}
-
-                    // Docker API 与 Watchtower 都可能触发容器重启：统一走“等待恢复”逻辑
-                    btn.textContent = translateAppTextLocal('等待容器重启...');
-                    if (updateMethod === 'docker_api') {
-                        showToast(translateAppTextLocal('Docker API 更新已启动，等待容器重启...'), 'info', 5000);
-                    }
-                    await waitForRestart();
-                } else {
-                    const msg = data.message || '未知错误';
-                    // 区分常见错误场景，给出友好提示
-                    if (updateMethod === 'docker_api') {
-                        if (msg.includes('未启用') || msg.includes('DOCKER_SELF_UPDATE_ALLOW')) {
-                            showToast(translateAppTextLocal('Docker API 自更新功能未启用。请在 .env 中设置 DOCKER_SELF_UPDATE_ALLOW=true，并在 docker-compose.yml 中挂载 docker.sock'), 'warning', 10000);
-                        } else if (msg.includes('docker.sock') || msg.includes('无法连接')) {
-                            showToast(translateAppTextLocal('无法访问 Docker API。请确认已在 docker-compose.yml 中挂载 /var/run/docker.sock'), 'warning', 8000);
-                        } else {
-                            showToast(translateAppTextLocal('Docker API 更新失败：') + msg, 'error', 8000);
-                        }
-                    } else {
-                        if (msg.includes('WATCHTOWER_HTTP_API_TOKEN') || (msg.includes('未配置') && res.status === 500)) {
-                            showToast(translateAppTextLocal('一键更新需要配置 Watchtower 服务（仅 Docker 部署支持）。请在 .env 中设置 WATCHTOWER_HTTP_API_TOKEN，并使用含 Watchtower 的 docker-compose 部署方式'), 'warning', 10000);
-                        } else if (msg.includes('无法连接') || msg.includes('Watchtower')) {
-                            showToast(translateAppTextLocal('无法连接 Watchtower 服务，请确认已使用 docker-compose 方式部署，且 watchtower 容器正常运行'), 'warning', 8000);
-                        } else {
-                            showToast(translateAppTextLocal('更新失败：') + msg, 'error');
-                        }
-                    }
-                    btn.disabled = false;
-                    btn.textContent = translateAppTextLocal('立即更新');
-                }
-            } catch (e) {
-                if (e.name === 'AbortError') {
-                    showToast(translateAppTextLocal('更新请求超时，请检查配置和网络连接'), 'error', 8000);
-                } else {
-                    showToast(translateAppTextLocal('更新请求失败，请检查网络连接'), 'error');
-                }
-                btn.disabled = false;
-                btn.textContent = translateAppTextLocal('立即更新');
-            }
-        }
-
-        /**
-         * 轮询 /healthz 等待容器重启后恢复
-         * - 立即开始轮询，每 3 秒一次
-         * - 最长等待 90 秒，超时提示用户手动检查
-         * - 检测到服务恢复后刷新页面
-         */
-        async function waitForRestart() {
-            // 默认 90 秒（Watchtower 通常更快）；Docker API 更新可能涉及 pull 镜像，适当放宽
-            const WATCHTOWER_MAX_WAIT_MS = 90000;  // 90 秒
-            const DOCKER_API_MAX_WAIT_MS = 180000;  // 180 秒
-            const POLL_INTERVAL_MS = 3000;  // 每 3 秒
-
-            let MAX_WAIT_MS = WATCHTOWER_MAX_WAIT_MS;
-            try {
-                const method = (window.__lastUpdateMethod || 'watchtower');
-                if (method === 'docker_api') {
-                    MAX_WAIT_MS = DOCKER_API_MAX_WAIT_MS;
-                }
-            } catch (e) {
-                MAX_WAIT_MS = WATCHTOWER_MAX_WAIT_MS;
-            }
-            const startAt = Date.now();
-            let seenDown = false;
-            let initialBootId = null;
-
-            // 先读取一次 boot_id，用于判断是否发生“新进程启动”
-            try {
-                const firstRes = await fetch('/healthz', { cache: 'no-store' });
-                if (firstRes.ok) {
-                    const firstData = await firstRes.json();
-                    if (firstData && firstData.boot_id) {
-                        initialBootId = String(firstData.boot_id);
-                    }
-                }
-            } catch (e) {
-                // ignore
-            }
-
-            while (Date.now() - startAt < MAX_WAIT_MS) {
-                await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
-                try {
-                    const res = await fetch('/healthz', { cache: 'no-store' });
-                    if (res.ok) {
-                        let bootIdChanged = false;
-                        try {
-                            const d = await res.json();
-                            const bootId = d && d.boot_id ? String(d.boot_id) : null;
-                            if (bootId && initialBootId && bootId !== initialBootId) {
-                                bootIdChanged = true;
-                            }
-                        } catch (e) {
-                            // ignore json parse
-                        }
-
-                        // 以“boot_id 变化”作为更可靠的重启完成信号
-                        if (bootIdChanged || seenDown) {
-                            showToast(translateAppTextLocal('更新完成，正在刷新页面...'), 'success');
-                            setTimeout(() => location.reload(), 1500);
-                            return;
-                        }
-                        // 还没看到重启迹象：可能仍在 pull/重建中，继续等
-                    } else {
-                        seenDown = true;
-                    }
-                } catch (e) {
-                    // 请求失败通常意味着容器正在重启/网络暂不可用
-                    seenDown = true;
-                }
-            }
-
-            // 超时处理
-            try {
-                const method = (window.__lastUpdateMethod || 'watchtower');
-                if (method === 'docker_api') {
-                    if (!seenDown) {
-                        showToast(translateAppTextLocal('等待超时：容器未发生重启，可能已是最新版本或更新仍在后台进行'), 'warning', 9000);
-                    } else {
-                        showToast(translateAppTextLocal('等待超时：容器尚未恢复，请检查容器状态/日志'), 'warning', 9000);
-                    }
-                } else {
-                    if (!seenDown) {
-                        showToast(translateAppTextLocal('等待超时：容器未发生重启，请检查 Watchtower 配置/日志'), 'warning', 9000);
-                    } else {
-                        showToast(translateAppTextLocal('更新超时，请手动检查容器状态'), 'warning', 8000);
-                    }
-                }
-            } catch (e) {
-                showToast(translateAppTextLocal('更新超时，请手动检查容器状态'), 'warning', 8000);
-            }
-            const btn = document.getElementById('btnTriggerUpdate');
-            if (btn) {
-                btn.disabled = false;
-                btn.textContent = translateAppTextLocal('立即更新');
-            }
-        }
-
-        /**
-         * 设置面板中的"手动触发更新"按钮回调
-         * 与 triggerUpdate() 类似，但 UI 反馈在设置面板内
-         */
-        async function manualTriggerUpdate() {
-            const btn = document.getElementById('btnManualTriggerUpdate');
-            const resultDiv = document.getElementById('manualUpdateResult');
-            if (!btn) return;
-
-            btn.disabled = true;
-            btn.textContent = translateAppTextLocal('正在触发更新...');
-            if (resultDiv) {
-                resultDiv.style.display = 'none';
-                resultDiv.innerHTML = '';
-            }
-
-            // 读取当前选择的更新方式
-            const selectedRadio = document.querySelector('input[name="updateMethod"]:checked');
-            const updateMethod = selectedRadio ? selectedRadio.value : 'watchtower';
-
-            try {
-                const timeout = updateMethod === 'docker_api' ? 120000 : 60000;
-                const url = `/api/system/trigger-update?method=${updateMethod}`;
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': getCSRFToken() },
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-
-                const data = await res.json();
-                if (data.success) {
-                    if (resultDiv) {
-                        resultDiv.style.display = 'block';
-                        const msg = pickApiMessage(data, '更新已触发', 'Update triggered');
-                        resultDiv.innerHTML = `<span style="color: var(--clr-success, #28a745);">✅ ${escapeHtml(msg)}</span>`;
-                    }
-                    // 镜像已是最新，无需等待重启
-                    if (data.already_latest) {
-                        showToast(pickApiMessage(data, '当前已是最新版本', 'Already up to date'), 'info', 5000);
-                        btn.disabled = false;
-                        btn.textContent = translateAppTextLocal('立即更新');
-                        return;
-                    }
-                    window.__lastUpdateMethod = updateMethod;
-                    btn.textContent = translateAppTextLocal('等待容器重启...');
-                    await waitForRestart();
-                } else {
-                    const msg = data.message || '未知错误';
-                    const detail = data.detail ? `\n详情: ${data.detail}` : '';
-                    if (resultDiv) {
-                        resultDiv.style.display = 'block';
-                        resultDiv.innerHTML = `<span style="color: var(--clr-danger, #dc3545);">❌ ${escapeHtml(msg)}</span>${detail ? '<br><small style="color: var(--text-muted);">' + escapeHtml(detail.trim()) + '</small>' : ''}`;
-                    }
-                    showToast(translateAppTextLocal('更新失败：') + msg, 'error', 8000);
-                    btn.disabled = false;
-                    btn.textContent = translateAppTextLocal('立即更新');
-                }
-            } catch (e) {
-                const errMsg = e.name === 'AbortError' ? translateAppTextLocal('请求超时') : (e.message || translateAppTextLocal('网络错误'));
-                if (resultDiv) {
-                    resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = `<span style="color: var(--clr-danger, #dc3545);">❌ ${escapeHtml(errMsg)}</span>`;
-                }
-                showToast(translateAppTextLocal('更新请求失败：') + errMsg, 'error', 8000);
-                btn.disabled = false;
-                btn.textContent = translateAppTextLocal('立即更新');
-            }
         }

@@ -72,7 +72,6 @@ class SettingsWebhookFrontendContractTests(unittest.TestCase):
 
         for token in [
             "Webhook 通知",
-            "📡 Webhook 通知",
             "启用 Webhook 通知",
             "Webhook URL",
             "Webhook Token（可选）",

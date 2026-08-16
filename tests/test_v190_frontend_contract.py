@@ -102,20 +102,19 @@ class V190FrontendContractTests(unittest.TestCase):
             "Telegram 通知",
             "接收通知邮箱",
             "发送测试邮件",
-            "📤 导出",
-            "🔄 全量刷新 Token",
+            "导出",
+            "全量刷新 Token",
             "＋ 添加账号",
-            "🔑 验证码",
+            "验证码",
             "审计日志",
-            "📋 审计日志",
             "暂无审计记录",
             "加载审计日志失败",
             "手动",
             "定时",
-            "✉️ 邮件通知",
-            "✉️ Email 通知",
-            "📬 Telegram 通知",
-            "📬 Telegram 推送",
+            "邮件通知",
+            "Email 通知",
+            "Telegram 通知",
+            "Telegram 推送",
             "这里只配置 Email 通知通道。普通邮箱需在账号列表开启通知后才会通过 Email 发送。启用后仅从新到达的邮件开始通知。",
             "这里只配置 Email 渠道的接收邮箱，不会让所有普通邮箱自动发送。",
             "这里只配置 Telegram 通知通道。普通邮箱需在账号列表开启通知后才会通过 Telegram 发送。",
@@ -148,9 +147,9 @@ class V190FrontendContractTests(unittest.TestCase):
             "确定要刷新所有账号的 Token 吗？",
             "确定要删除这个标签吗？",
             "Cron 表达式",
-            "📨 收件箱",
-            "⚠️ 垃圾邮件",
-            "🔔 推送",
+            "收件箱",
+            "垃圾邮件",
+            "推送",
             "QQ邮箱",
             "163邮箱",
             "126邮箱",
@@ -162,7 +161,6 @@ class V190FrontendContractTests(unittest.TestCase):
             "未知发件人",
             "勾选后，新导入的 Outlook/IMAP 账号会以 `available` 状态进入邮箱池；不勾选则保持池外。",
             "（每个邮箱刷新之间的等待时间）",
-            "访问 GitHub 仓库",
             "Webhook 通知",
             "启用 Webhook 通知",
             "Webhook URL",
@@ -239,8 +237,8 @@ class V190FrontendContractTests(unittest.TestCase):
         index_html = self._get_text(client, "/")
         groups_js = self._get_text(client, "/static/js/features/groups.js")
 
-        self.assertIn("✉️ Email 通知", index_html)
-        self.assertIn("📬 Telegram 通知", index_html)
+        self.assertIn("Email 通知", index_html)
+        self.assertIn("Telegram 通知", index_html)
         self.assertIn(
             "这里只配置 Email 通知通道。普通邮箱需在账号列表开启通知后才会通过 Email 发送。启用后仅从新到达的邮件开始通知。",
             index_html,
@@ -403,11 +401,14 @@ class V190FrontendContractTests(unittest.TestCase):
         self.assertNotIn("if (!isImap && (!data.client_id || !data.refresh_token))", accounts_js)
 
     def test_collapsed_sidebar_hides_github_label_to_avoid_overlap(self):
+        # GitHub 图标/按钮已从侧栏移除(用户需求),断言不再存在相关 CSS 与 i18n 键
         client = self.app.test_client()
         css = self._get_text(client, "/static/css/main.css")
         i18n_js = self._get_text(client, "/static/js/i18n.js")
-        self.assertIn(".sidebar-collapsed .btn-github span { display: none; }", css)
-        self.assertIn(".sidebar-collapsed .btn-github {", css)
+        self.assertNotIn(".sidebar-collapsed .btn-github", css)
+        self.assertNotIn("btn-github", css)
+        self.assertNotIn("'GitHub'", i18n_js)
+        self.assertNotIn("'☀ 浅色模式'", i18n_js)
         self.assertIn(".sidebar-collapsed #globalLanguageSwitcher.switcher-docked", i18n_js)
 
     def test_scroll_is_not_globally_locked_on_html_body(self):
@@ -423,23 +424,25 @@ class V190FrontendContractTests(unittest.TestCase):
             re.compile(r"body\\s*\\{[^}]*overflow:\\s*hidden;", re.MULTILINE),
         )
 
-    def test_watchtower_i18n_keys_present(self):
-        """验证 Watchtower/Docker API 更新相关新增的 i18n 翻译键存在"""
+    def test_watchtower_i18n_keys_removed(self):
+        """一键更新功能已移除，相关 i18n 键不应存在；通用键保留"""
         client = self.app.test_client()
         i18n_js = self._get_text(client, "/static/js/i18n.js")
         main_js = self._get_text(client, "/static/js/main.js")
 
-        # i18n.js 中应包含新增的翻译条目
-        self.assertIn(
-            "'Watchtower 检查完毕，当前已是最新版本': 'Watchtower check complete, already up to date'",
-            i18n_js,
-        )
-        self.assertIn("'✅ 连通正常': '✅ Connection OK'", i18n_js)
+        # 一键更新相关键应已移除
+        self.assertNotIn("Watchtower 检查完毕", i18n_js)
+        self.assertNotIn("一键更新配置", i18n_js)
+        self.assertNotIn("触发容器更新", i18n_js)
+        self.assertNotIn("triggerUpdate", main_js)
+        self.assertNotIn("testWatchtower", main_js)
+
+        # 通用连通性测试键保留
+        self.assertIn("'连通正常': 'Connection OK'", i18n_js)
         self.assertIn("'⏳ 测试中…': '⏳ Testing...'", i18n_js)
         self.assertIn("'基础': 'Basic'", i18n_js)
         self.assertIn("'API 安全': 'API Security'", i18n_js)
         self.assertIn("'自动化': 'Automation'", i18n_js)
 
-        # main.js 中应使用 translateAppTextLocal 翻译 Watchtower 结果
-        self.assertIn("translateAppTextLocal('✅ 连通正常')", main_js)
+        # main.js 中应使用 translateAppTextLocal 翻译连通性结果
         self.assertIn("translateAppTextLocal('⏳ 测试中…')", main_js)

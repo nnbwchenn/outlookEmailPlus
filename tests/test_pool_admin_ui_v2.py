@@ -154,9 +154,7 @@ class PoolAdminI18nExactMapTests(PoolAdminUIv2Base):
         self.js = self._get_js("/static/js/i18n.js")
 
     def test_pool_admin_card_title(self):
-        self._assert_exact_map_entry(self.js, "🎱 号池管理", "🎱 Pool Admin")
-
-    def test_pool_admin_title_no_emoji(self):
+        # emoji 已替换为 SVG,键不带 emoji 前缀
         self._assert_exact_map_entry(self.js, "号池管理", "Pool Admin")
 
     def test_batch_move_in(self):
@@ -217,7 +215,8 @@ class PoolAdminI18nExactMapTests(PoolAdminUIv2Base):
         self._assert_exact_map_entry(self.js, "插件管理", "Plugin Management")
 
     def test_api_security_label(self):
-        self._assert_exact_map_entry(self.js, "🔐 API 安全设置", "🔐 API Security Settings")
+        # emoji 已替换为 SVG,键不带 emoji 前缀
+        self._assert_exact_map_entry(self.js, "API 安全设置", "API Security Settings")
 
 
 # ===== 3. i18n regex pattern 完整性 =====

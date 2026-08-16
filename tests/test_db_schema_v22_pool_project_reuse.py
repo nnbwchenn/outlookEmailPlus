@@ -59,8 +59,7 @@ class DbSchemaV22PoolProjectReuseTests(unittest.TestCase):
                 INSERT INTO accounts (
                     email, client_id, refresh_token, status, account_type, provider, group_id, pool_status, email_domain
                 ) VALUES
-                    ('legacy_outlook@example.com', 'cid', 'rt', 'active', 'outlook', 'outlook', 1, 'used', 'example.com'),
-                    ('legacy_cf@example.com', 'cid', 'rt', 'active', 'temp_mail', 'cloudflare_temp_mail', 1, 'used', 'example.com')
+                    ('legacy_outlook@example.com', 'cid', 'rt', 'active', 'outlook', 'outlook', 1, 'used', 'example.com')
                 """)
             conn.execute("""
                 INSERT INTO account_project_usage (
@@ -134,7 +133,8 @@ class DbSchemaV22PoolProjectReuseTests(unittest.TestCase):
 
             conn = sqlite3.connect(str(db_path))
             try:
-                row = conn.execute("SELECT pool_status FROM accounts WHERE email = 'legacy_cf@example.com'").fetchone()
+                # 临时邮箱功能已移除,种子库仅保留 outlook 账号;历史 used 账号应全部回 available
+                row = conn.execute("SELECT pool_status FROM accounts WHERE email = 'legacy_outlook@example.com'").fetchone()
                 self.assertIsNotNone(row)
                 self.assertEqual(row[0], "available")
             finally:

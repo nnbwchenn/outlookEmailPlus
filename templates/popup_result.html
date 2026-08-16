@@ -15,17 +15,17 @@
 <body>
     {% if error %}
     <div class="card">
-        <h2>⚠️ 授权未完成</h2>
+        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>授权未完成</h2>
         <p><strong>{{ error_code }}</strong></p>
         <p>{{ error_description }}</p>
-        <p class="guidance">💡 {{ guidance }}</p>
+        <p class="guidance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>{{ guidance }}</p>
         <button class="btn btn-secondary" onclick="window.close()">关闭</button>
     </div>
     {% else %}
     <div class="card">
-        <h2>✅ 授权成功</h2>
+        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><polyline points="20 6 9 17 4 12"/></svg>授权成功</h2>
         <p>请复制当前地址栏的完整 URL，粘贴到 Token 工具页面的「手动换取」区域</p>
-        <button class="btn btn-primary" onclick="copyCurrentUrl()">📋 复制回调地址</button>
+        <button class="btn btn-primary" onclick="copyCurrentUrl()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>复制回调地址</button>
         <button class="btn btn-secondary" onclick="window.close()">关闭</button>
         <p id="copy-tip" style="display:none; color:green; margin-top:8px;">✓ 已复制</p>
     </div>

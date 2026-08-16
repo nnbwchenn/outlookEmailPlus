@@ -112,7 +112,7 @@
                     }
                     container.innerHTML = `
                         <div class="empty-state">
-                            <span class="empty-icon">⚠️</span><p>${translateAppTextLocal('获取邮件失败，')}<a href="javascript:void(0)" id="showEmailErrorLink" style="color:#409eff;text-decoration:underline;">${translateAppTextLocal('点击查看详情')}</a></p>
+                            <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><p>${translateAppTextLocal('获取邮件失败，')}<a href="javascript:void(0)" id="showEmailErrorLink" style="color:#409eff;text-decoration:underline;">${translateAppTextLocal('点击查看详情')}</a></p>
                         </div>
                     `;
                     lastFetchErrorDetails = data.details || {};
@@ -126,7 +126,7 @@
                 console.error('加载邮件列表失败:', error);
                 container.innerHTML = `
                     <div class="empty-state">
-                        <span class="empty-icon">⚠️</span><p>${translateAppTextLocal('网络错误，请重试')}</p>
+                        <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><p>${translateAppTextLocal('网络错误，请重试')}</p>
                     </div>
                 `;
             } finally {
@@ -151,7 +151,7 @@
             if (emails.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <span class="empty-icon">📭</span>
+                        <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span>
                         <p>${translateAppTextLocal('收件箱为空')}</p>
                     </div>
                 `;
@@ -304,7 +304,7 @@
             if (refs.container) {
                 refs.container.innerHTML = `
                     <div class="empty-state">
-                        <span class="empty-icon">📄</span>
+                        <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
                         <p>${translateAppTextLocal('选择一封邮件查看详情')}</p>
                     </div>
                 `;
@@ -423,7 +423,7 @@
                         const refs = getEmailDetailRefs({ source: 'mailbox' });
                         refs.container.innerHTML = `
                             <div class="empty-state">
-                                <span class="empty-icon">🗑️</span><p>邮件已删除</p>
+                                <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span><p>邮件已删除</p>
                             </div>
                         `;
                         setEmailDetailToolbarVisibility(false, { source: 'mailbox' });
@@ -482,7 +482,7 @@
                         // 渲染失败时回退为纯文本显示
                         container.innerHTML = `
                             <div class="empty-state">
-                                <span class="empty-icon">⚠️</span><p>邮件渲染失败: ${escapeHtml(renderError.message || '未知错误')}</p>
+                                <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><p>邮件渲染失败: ${escapeHtml(renderError.message || '未知错误')}</p>
                             </div>
                         `;
                     }
@@ -490,7 +490,7 @@
                     handleApiError(data, '加载邮件详情失败');
                     container.innerHTML = `
                         <div class="empty-state">
-                            <span class="empty-icon">⚠️</span><p>${window.resolveApiErrorMessage ? window.resolveApiErrorMessage(data.error || data, '加载失败', 'Load failed') : (data.error && data.error.message ? data.error.message : '加载失败')}</p>
+                            <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><p>${window.resolveApiErrorMessage ? window.resolveApiErrorMessage(data.error || data, '加载失败', 'Load failed') : (data.error && data.error.message ? data.error.message : '加载失败')}</p>
                         </div>
                     `;
                 }
@@ -498,7 +498,7 @@
                 console.error('加载邮件详情失败:', error);
                 container.innerHTML = `
                     <div class="empty-state">
-                        <span class="empty-icon">⚠️</span><p>网络错误，请重试 (${escapeHtml(error.message || '')})</p>
+                        <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><p>网络错误，请重试 (${escapeHtml(error.message || '')})</p>
                     </div>
                 `;
             }
