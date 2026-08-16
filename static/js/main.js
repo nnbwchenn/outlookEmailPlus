@@ -427,6 +427,15 @@
                 }
                 syncAccountPanelDensityIfVisible();
                 scheduleAccountPanelDensitySync();
+                // 移动端：进入邮箱页时回到分组列表层（level 0）
+                if (typeof setMobileMailboxLevel === 'function') {
+                    setMobileMailboxLevel(0);
+                }
+            } else {
+                // 离开 mailbox 页面时清理移动端下钻层级
+                if (typeof setMobileMailboxLevel === 'function') {
+                    setMobileMailboxLevel(0);
+                }
             }
             if (page === 'settings') loadSettings();
             if (page === 'refresh-log') loadRefreshLogPage();
@@ -674,6 +683,66 @@
             }
         }
         window.addEventListener('resize', handleResponsiveGroups, { passive: true });
+
+        // ==================== 移动端下钻式导航 ====================
+        // 手机端(≤768px)一次只显示一层：分组列表(level 0) → 账号列表(level 1) → 邮件列表(level 2)
+        // 通过 workspace 的 mobile-level-N class 控制 CSS 显隐；返回按钮逐层回退。
+
+        function isMobileWorkspaceViewport() {
+            return window.innerWidth <= 768;
+        }
+
+        // 设置当前下钻层级（仅移动端生效；桌面/平板不受影响）
+        function setMobileMailboxLevel(level) {
+            const workspace = document.getElementById('mailboxStandardLayout');
+            if (!workspace) return;
+            if (!isMobileWorkspaceViewport()) {
+                workspace.classList.remove('mobile-level-1', 'mobile-level-2');
+                return;
+            }
+            workspace.classList.remove('mobile-level-1', 'mobile-level-2');
+            if (level === 1) workspace.classList.add('mobile-level-1');
+            else if (level === 2) workspace.classList.add('mobile-level-2');
+        }
+
+        // 返回上一层：level 2 → level 1 → level 0
+        function mobileMailboxBack() {
+            const workspace = document.getElementById('mailboxStandardLayout');
+            if (!workspace) return;
+            if (!isMobileWorkspaceViewport()) return;
+            if (workspace.classList.contains('mobile-level-2')) {
+                setMobileMailboxLevel(1);
+            } else if (workspace.classList.contains('mobile-level-1')) {
+                setMobileMailboxLevel(0);
+            }
+            // 回退时退出邮件详情 focus，确保列表可见
+            if (typeof setMailboxDetailFocus === 'function') {
+                setMailboxDetailFocus(false);
+            }
+            if (typeof hideEmailDetailSection === 'function') {
+                hideEmailDetailSection();
+            }
+        }
+
+        // 移动端进入账号列表（由 selectGroup 调用）
+        function mobileEnterAccountList() {
+            setMobileMailboxLevel(1);
+        }
+
+        // 移动端进入邮件列表（由 selectAccount 调用）
+        function mobileEnterEmailList() {
+            setMobileMailboxLevel(2);
+        }
+
+        // 窗口尺寸跨断点时重置层级（移动端↔桌面/平板）
+        function handleResponsiveMailboxLevel() {
+            const workspace = document.getElementById('mailboxStandardLayout');
+            if (!workspace) return;
+            if (!isMobileWorkspaceViewport()) {
+                workspace.classList.remove('mobile-level-1', 'mobile-level-2');
+            }
+        }
+        window.addEventListener('resize', handleResponsiveMailboxLevel, { passive: true });
 
         // ==================== 邮件详情显示控制 ====================
 

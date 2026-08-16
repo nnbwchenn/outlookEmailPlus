@@ -202,6 +202,7 @@
                                 <button class="btn-icon btn-toggle-groups" id="btnToggleGroups" onclick="toggleGroupsColumn()" title="展开分组">
                                     ☰
                                 </button>
+                                <button class="btn-icon mobile-back-btn" onclick="mobileMailboxBack()" title="返回分组">←</button>
                                 <span class="group-color-dot" id="currentGroupColor" style="background-color:#666;"></span>
                                 <span id="currentGroupName">选择分组</span>
                             </span>
@@ -249,7 +250,8 @@
                     <!-- Emails Column -->
                     <div class="workspace-panel emails-column" id="emailListPanel">
                         <div class="column-header">
-                            <div style="display:flex;align-items:center;gap:8px;">
+                            <button class="btn-icon mobile-back-btn" onclick="mobileMailboxBack()" title="返回账号">←</button>
+                            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
                                 <div class="email-tabs" id="folderTabs" style="display:none;border:none;">
                                     <button class="email-tab active" data-folder="inbox" onclick="switchFolder('inbox')">📨 收件箱</button>
                                     <button class="email-tab" data-folder="junkemail" onclick="switchFolder('junkemail')">⚠️ 垃圾邮件</button>

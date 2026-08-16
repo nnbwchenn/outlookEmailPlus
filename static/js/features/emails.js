@@ -222,9 +222,9 @@
         }
 
         // detail-focus 断点阈值：低于此宽度时切换列表/详情为互斥模式
-        // 注意: CSS 平板断点为 1024px，此处 900px 为功能切换阈值而非布局断点
+        // 与 CSS 平板断点(1024px)保持一致，避免 901-1024px 区间列表/详情同屏挤压
         function isNarrowWorkspaceViewport() {
-            return window.innerWidth <= 900;
+            return window.innerWidth <= 1024;
         }
 
         // 邮箱列表/详情互斥切换 — 窄视口下点击邮件时隐藏列表、全宽展示详情

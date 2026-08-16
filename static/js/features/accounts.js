@@ -6,6 +6,11 @@
             currentFolder = 'inbox';
             currentMethod = 'graph';
 
+            // 移动端下钻：进入邮件列表层
+            if (typeof mobileEnterEmailList === 'function') {
+                mobileEnterEmailList();
+            }
+
             document.getElementById('currentAccountBar').style.display = '';
             document.getElementById('currentAccountEmail').textContent = email;
 

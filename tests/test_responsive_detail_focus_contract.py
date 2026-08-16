@@ -154,5 +154,101 @@ class ResponsiveDetailFocusContractTests(unittest.TestCase):
         self.assertIn("setMailboxDetailFocus(false)", show_list_section.group(0))
 
 
+class ResponsiveThreeTierContractTests(unittest.TestCase):
+    """三端自适应(PC/平板/手机)下钻式导航前端契约测试"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.module = import_web_app_module()
+        cls.app = cls.module.app
+
+    def _login(self, client):
+        resp = client.post("/login", json={"password": "testpass123"})
+        self.assertEqual(resp.status_code, 200)
+
+    def _get_index_html(self) -> str:
+        client = self.app.test_client()
+        self._login(client)
+        resp = client.get("/")
+        try:
+            return resp.data.decode("utf-8")
+        finally:
+            resp.close()
+
+    # ==================== 断点统一契约 ====================
+
+    def test_js_narrow_breakpoint_matches_css_tablet_breakpoint(self):
+        """isNarrowWorkspaceViewport 应使用 1024px,与 CSS 平板断点一致"""
+        from pathlib import Path
+
+        emails_js = Path("static/js/features/emails.js").read_text(encoding="utf-8")
+        self.assertIn("window.innerWidth <= 1024", emails_js)
+
+    # ==================== 移动端下钻函数契约 ====================
+
+    def test_main_js_contains_mobile_drilldown_functions(self):
+        """main.js 应包含移动端下钻层级管理函数"""
+        from pathlib import Path
+
+        main_js = Path("static/js/main.js").read_text(encoding="utf-8")
+        for fn in [
+            "function isMobileWorkspaceViewport",
+            "function setMobileMailboxLevel",
+            "function mobileMailboxBack",
+            "function mobileEnterAccountList",
+            "function mobileEnterEmailList",
+            "function handleResponsiveMailboxLevel",
+        ]:
+            self.assertIn(fn, main_js)
+
+    def test_groups_js_calls_mobile_enter_account_list(self):
+        """selectGroup 应触发移动端进入账号列表层"""
+        from pathlib import Path
+
+        groups_js = Path("static/js/features/groups.js").read_text(encoding="utf-8")
+        self.assertIn("mobileEnterAccountList", groups_js)
+
+    def test_accounts_js_calls_mobile_enter_email_list(self):
+        """selectAccount 应触发移动端进入邮件列表层"""
+        from pathlib import Path
+
+        accounts_js = Path("static/js/features/accounts.js").read_text(encoding="utf-8")
+        self.assertIn("mobileEnterEmailList", accounts_js)
+
+    # ==================== HTML 返回按钮契约 ====================
+
+    def test_index_html_has_mobile_back_buttons(self):
+        """accounts 列与 emails 列应包含移动端返回按钮"""
+        html = self._get_index_html()
+        self.assertEqual(html.count("mobile-back-btn"), 2)
+        self.assertIn("mobileMailboxBack()", html)
+
+    def test_css_mobile_back_button_hidden_by_default_on_desktop(self):
+        """mobile-back-btn 应全局默认隐藏,仅在移动端下钻层级显示"""
+        from pathlib import Path
+
+        css = Path("static/css/main.css").read_text(encoding="utf-8")
+        self.assertIn(".mobile-back-btn { display: none; }", css)
+
+    # ==================== CSS 下钻规则契约 ====================
+
+    def test_css_mobile_has_drilldown_level_rules(self):
+        """移动端断点应包含 mobile-level-1/2 下钻显示规则"""
+        from pathlib import Path
+
+        css = Path("static/css/main.css").read_text(encoding="utf-8")
+        mobile_section = re.search(
+            r"@media\s*\([^)]*max-width:\s*768px[^)]*\).*",
+            css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(mobile_section)
+        mobile = mobile_section.group(0)
+        self.assertIn("mobile-level-1", mobile)
+        self.assertIn("mobile-level-2", mobile)
+        self.assertIn("mobile-back-btn", mobile)
+        self.assertIn("#page-mailbox", mobile)
+
+
 if __name__ == "__main__":
     unittest.main()

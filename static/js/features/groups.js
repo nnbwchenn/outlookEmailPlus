@@ -81,6 +81,18 @@
             currentAccountPage = 1;  // 切换分组时重置到第 1 页
             currentAccountSearchQuery = '';
 
+            // 移动端下钻：进入账号列表层
+            if (typeof mobileEnterAccountList === 'function') {
+                mobileEnterAccountList();
+            }
+            // 平板断点：选择分组后自动收起浮动 groups 面板
+            if (typeof toggleGroupsColumn === 'function' && window.innerWidth > 768 && window.innerWidth <= 1024) {
+                const groupPanel = document.getElementById('groupPanel');
+                if (groupPanel && groupPanel.classList.contains('groups-expanded')) {
+                    toggleGroupsColumn();
+                }
+            }
+
             // 切换分组时停止所有正在运行的轮询（避免跨分组轮询堆积）
             if (typeof stopAllPolls === 'function') {
                 stopAllPolls();
