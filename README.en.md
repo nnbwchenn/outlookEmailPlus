@@ -12,7 +12,7 @@ Unlike general-purpose email clients, it focuses on **registration and verificat
 - **Lighter and more focused**: non-core features such as sending mail are intentionally left out, so the interface stays cleaner and every design choice is centered on completing registration tasks.
 - **Broader import compatibility**: it supports mainstream mailbox providers such as Gmail, QQ, and 163, as well as custom IMAP servers. Self-hosted mailboxes also work.
 - **Automation-friendly**: it exposes APIs for batch registration workflows; the mail pool supports project-scoped claiming via `project_key`. For long-lived mailboxes, when `project_key + caller_id + task_id` are explicitly provided during claim, a mailbox with a recorded success in the same project will not be re-claimed, and `claim-complete(result=success)` returns it directly to `available`, allowing immediate reuse by other projects. Mailbox claiming, verification-code retrieval, and release are all covered.
-- **Third-party notifications**: third-party notification channels are supported. Telegram is already integrated, and important mailboxes can push alerts automatically.
+- **Third-party notifications**: third-party notification channels are supported. Telegram and Webhook are integrated, and important mailboxes can push alerts automatically.
 
 In short, OutlookMail Plus is a mailbox manager designed specifically for registration workflows.
 
@@ -36,12 +36,18 @@ The repository already includes some screenshots, and more can be added later.
 
 ## Version Highlights
 
-Current stable version: `v2.2.2`
+Current stable version: `v2.8.0`
 
 ### Recent Version Overview
 
 | Version | Date | Key New Features |
 |---------|------|-----------------|
+| **v2.8.0** | 2026-07 | 🔄 Old-frontend emergency stable release (Issue #115): **unified verification-extraction module** (rule extraction / confidence gating / external API contract), verification-code case preservation, hyphenated-code recognition, cross-folder latest-verification-email selection, Gunicorn concurrent startup config |
+| **v2.7.0** | 2026-05 | ⚡ **Performance optimizations**: new `/api/bootstrap` lightweight endpoint replacing repeated home-page queries, 30s overview cache, aggregated group account counts (no N+1) |
+| **v2.6.0** | 2026-05 | 🎱 **Pool-admin UI & status maintenance MVP**: in-pool/out-of-pool/group/status/provider filters with pagination, move in/out, freeze/restore/retire/force-release, claimed accounts allow only `force_release` |
+| **v2.5.0** | 2026-05 | 📥 Bulk import and CF Temp Mail import (removed along with temp-mail); browser-extension enhancements |
+| **v2.4.0** | 2026-05 | 📬 **Batch email fetching**: frontend batch-action UI (tag/untag/move group/batch fetch/notify/refresh tokens/delete) with server-side aggregation |
+| **v2.3.0** | 2026-04 | 🛡️ **Invalid-token detection & governance loop**: unified `invalid_grant` classification, invalid-candidate query and batch `inactive` endpoints, frontend "Invalid Governance" panel |
 | **v2.2.0** | 2026-04 | 🔌 Temp Mail Provider Plugin System and temp-mail capabilities (this feature has been removed); browser extension adds local personal-info generator and full Jest coverage |
 | **v2.1.0** | 2026-04 | 📊 **Overview Dashboard**: a 5-tab unified board (Summary / Verification / External API / Mailbox Pool / Activity), plus `verification_extract_logs` for shared observability, browser-extension API-key copy fix, and overview real-time/i18n polish |
 | **v2.0.0** | 2026-04 | 🌐 **Browser Extension** (Chrome/Edge MV3): one-click claim → auto-extract verification code/link → complete/release, no tab-switching needed; backend adds `chrome-extension://` CORS support |
@@ -51,15 +57,24 @@ Current stable version: `v2.2.2`
 | **v1.16.0** | 2026-04 | 🔑 OAuth Token tool upgrade: new "Get Authorization Link" mode for stable cross-environment auth |
 | **v1.15.0** | 2026-04 | 🤖 **AI verification-code enhancement**: system-level AI fallback (only when both confidence scores are low), fixed JSON contract; **email alias** (`+tag`) auto-normalization |
 | **v1.13.0** | 2026-04 | ⚡ **One-click hot-update**: Watchtower (recommended) and Docker API dual modes, auto-detect new version with in-app banner |
-| **v1.11.0** | 2026-04 | 🏊 **Mail pool project isolation** (`project_key`); CF Worker multi-domain + Admin Key encryption; frontend account list pagination; unified poll engine |
+| **v1.11.0** | 2026-04 | 🏊 **Mail pool project isolation** (`project_key`); frontend account list pagination; unified poll engine |
 | **v1.9.0** | 2026-03 | 🌐 **Bilingual UI** (Chinese/English); unified notification dispatch (Email + Telegram); demo-site password lock |
 
 ---
 
+### v2.8.0 — Old-Frontend Stable Release & Verification Enhancements
+
+- **Unified verification-extraction module (ZER-90)**: rule extraction, option-based extraction, confidence gating, and the external API contract are consolidated into one module; the frontend "Verification Code" button and observability paths share the same extraction pipeline
+- **Verification-code case preservation**: rule and AI fallback paths no longer force `.upper()`; `verification_code` / `formatted` keep the original case from the email body
+- **Hyphenated-code recognition**: supports codes such as `84A-KMN` and `NJF-KUU`; fixes HTML-stuck text and CSS color-value false positives
+- **Cross-folder latest-verification-email selection**: when multiple folders contain verification emails, the newest one is preferred, reducing the chance of getting a stale code
+- **Gunicorn concurrent startup config**: fixes startup and scheduler behavior under multi-worker/thread scenarios
+- Temp-mail capabilities (including CF Temp Mail import) have been fully removed
+
 ### v2.1.0 — Overview Dashboard & Observability
 
 - Added a 5-tab overview dashboard to replace the old dashboard page
-- Added `verification_extract_logs` to unify observability across regular-mailbox, temp-mail, and external-API verification extraction paths
+- Added `verification_extract_logs` to unify observability across regular-mailbox and external-API verification extraction paths
 - Fixed the real browser-extension “API invalid” causes: copying masked API keys and misunderstanding `external pool` / `pool_access` prerequisites
 - Completed overview real-time refresh and i18n polish, so header / tabs / hover notes / timeline now stay consistent with the main cards
 
@@ -100,13 +115,21 @@ The `browser-extension/` directory contains a Chrome/Edge Manifest V3 extension.
 - Bulk import and organization
   Supports bulk import, tags, search, groups, and export
 - Mail reading and extraction
-  Supports verification-code extraction, link extraction, and raw message viewing
+  Supports verification-code extraction, link extraction, and raw message viewing; rule extraction + AI fallback + confidence gating; verification-code case preservation and hyphenated-code recognition
 - Mail pool orchestration
   Supports claiming, releasing, completing, cooldown recovery, and stale-claim recycling; long-lived mailboxes support project-scoped success reuse: same-project claims are blocked by recorded success history, and `success` returns the mailbox to `available` for immediate reuse by other projects
+- Pool admin
+  Built-in pool-admin page: in-pool/out-of-pool/group/status/provider filters with pagination, move in/out of pool, freeze/restore/retire/force-release
+- Invalid-token governance
+  Unified `invalid_grant` classification in the refresh pipeline, invalid-candidate query and batch `inactive` endpoints, one-click frontend "Invalid Governance" panel
+- Batch operations
+  Batch tagging, group moves, batch email fetching, batch notification toggles, batch token refresh, and batch deletion for accounts and emails
 - Controlled external APIs
   Supports `X-API-Key` authentication, multiple consumer keys, mailbox scope restrictions, IP allowlists, and rate limits
 - Notification delivery
-  Supports business email notifications, Telegram push, and test sending
+  Supports business email notifications, Telegram push, Webhook notifications, and test sending
+- Three-tier responsive UI
+  Desktop (three columns) / tablet (floating group panel + list/detail mutual exclusion) / mobile (drill-down navigation) adaptive layouts
 - Demo-site protection
   Supports locking the login-password change entry through environment variables so visitors cannot change the backend password from Settings
 
@@ -220,7 +243,6 @@ Notes:
 - `no healthy upstream` means the reverse proxy currently has no healthy backend. It does **not** automatically mean the app code crashed; after an update, check the **new container startup logs** and platform events first
 - If platform events show `Stopping container`, `FailedKillPod`, or `KillPodSandbox DeadlineExceeded`, the incident includes a platform-side Pod stop/reclaim problem and should not be diagnosed from app logs alone
 - This project uses SQLite with a persistent volume by default. During updates, keep it as a **single-instance** deployment; if old and new instances touch the same database file briefly, startup migrations or file-lock waits may cause health-check timeouts
-- Treat `TEMP_EMAIL_UPSTREAM_READ_FAILED` separately from `no healthy upstream`: the former is a temp-mail upstream read failure, while the latter means the ingress layer has no healthy app instance behind it
 
 ### Local Run
 
@@ -262,6 +284,10 @@ python -m unittest discover -s tests -v
   Backend environment default scope (fallback): `offline_access https://outlook.office.com/IMAP.AccessAsUser.All`; frontend first-render default uses Graph preset
 - `OAUTH_TENANT`
   Default tenant for the token tool, fixed to compatibility-mode `consumers`
+- `PROXY_FIX_ENABLED`
+  Whether to enable the ProxyFix middleware, default `false`. Enable only when deployed behind a reverse proxy with `TRUSTED_PROXIES` configured
+- `TRUSTED_PROXIES`
+  Comma-separated trusted proxy IP/CIDR list used to validate `X-Forwarded-For` origins, e.g. `"10.0.0.0/8,172.16.0.0/12,127.0.0.1"`; empty by default (trust no proxies)
 
 ### One-Click Update
 

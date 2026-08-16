@@ -5,6 +5,7 @@ All notable changes to OutlookMail Plus are documented in this file.
 ## [Unreleased]
 
 - **移除临时邮箱功能**：彻底移除临时邮箱（含 CF Worker / GPTMail / Custom / 插件 Provider）能力，包括前端页面与设置项、后端服务与路由、`temp_emails` / `temp_email_messages` 数据库表（升级时自动清理）、插件系统与相关文档；邮箱池仅保留 Outlook / IMAP 长期邮箱语义。验证码提取保留，仅移除临时邮箱来源。
+- **三端自适应 UI**：桌面（三栏）/ 平板（分组浮动面板 + 列表详情互斥）/ 手机（下钻式逐层导航）自适应布局；统一 JS 与 CSS 断点阈值（1024px）。
 
 ## [v2.8.0] - 2026-07-26
 
