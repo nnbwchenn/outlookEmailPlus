@@ -1,12 +1,11 @@
 """
-版本更新检测与一键更新 — 后端单元测试
+版本更新检测 — 后端单元测试
 
 覆盖范围：
 - _version_gt 版本比较工具函数
 - api_version_check: 正常更新/无更新/GitHub 不可达降级/缓存 TTL/字段名校验
-- api_trigger_update: 未配置 token/Watchtower 成功/Watchtower 非200/连接失败/异常兜底
-- 路由注册: GET /api/system/version-check, POST /api/system/trigger-update
-- 鉴权: 未登录时两个接口均拦截
+- 路由注册: GET /api/system/version-check
+- 鉴权: 未登录时版本检查接口拦截
 - HTML 模板: Banner 在 body 顶部，包含正确 id
 - CSS: version-update-banner 样式存在
 - .env.example: 环境变量名正确
@@ -35,15 +34,6 @@ def _mock_github_response(tag_name=f"v{APP_VERSION}", html_url="https://github.c
             "html_url": html_url,
         }
     ).encode()
-    mock_resp.__enter__ = lambda s: mock_resp
-    mock_resp.__exit__ = MagicMock(return_value=False)
-    return mock_resp
-
-
-def _mock_watchtower_response(status=200):
-    """构造 mock urlopen 返回值（Watchtower）"""
-    mock_resp = MagicMock()
-    mock_resp.status = status
     mock_resp.__enter__ = lambda s: mock_resp
     mock_resp.__exit__ = MagicMock(return_value=False)
     return mock_resp
@@ -330,172 +320,6 @@ class VersionCheckAPITests(unittest.TestCase):
             self.assertEqual(req_obj.get_header("User-agent"), "outlook-email-plus")
 
 
-class TriggerUpdateAPITests(unittest.TestCase):
-    """api_trigger_update 接口"""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.module = import_web_app_module()
-        cls.app = cls.module.app
-
-    def setUp(self):
-        with self.app.app_context():
-            clear_login_attempts()
-
-    def _login(self, client):
-        resp = client.post("/login", json={"password": "testpass123"})
-        self.assertEqual(resp.status_code, 200)
-
-    def test_route_post_trigger_update(self):
-        """路由: POST /api/system/trigger-update 注册存在"""
-        client = self.app.test_client()
-        self._login(client)
-        resp = client.post("/api/system/trigger-update")
-        # 至少不是 404/405
-        self.assertIn(resp.status_code, (200, 500, 502, 503))
-
-    def test_no_token_returns_500(self):
-        """未配置 WATCHTOWER_HTTP_API_TOKEN 时返回 500"""
-        client = self.app.test_client()
-        self._login(client)
-        with patch.dict(os.environ, {"WATCHTOWER_HTTP_API_TOKEN": ""}, clear=False):
-            resp = client.post("/api/system/trigger-update")
-        self.assertEqual(resp.status_code, 500)
-        data = resp.get_json()
-        self.assertFalse(data["success"])
-        self.assertIn("Token 未配置", data["message"])
-
-    def test_watchtower_success(self):
-        """Watchtower 返回 200 时成功"""
-        client = self.app.test_client()
-        self._login(client)
-        with patch.dict(
-            os.environ,
-            {
-                "WATCHTOWER_HTTP_API_TOKEN": "test-token",
-                "WATCHTOWER_API_URL": "http://watchtower:8080",
-            },
-        ):
-            with patch(URLOPEN_PATH) as mock_urlopen:
-                mock_resp = MagicMock()
-                mock_resp.status = 200
-                mock_resp.read.return_value = b""
-                mock_resp.__enter__ = lambda s: mock_resp
-                mock_resp.__exit__ = MagicMock(return_value=False)
-                mock_urlopen.return_value = mock_resp
-
-                resp = client.post("/api/system/trigger-update")
-
-        data = resp.get_json()
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(data["success"])
-        self.assertTrue(data.get("already_latest"))
-        self.assertIn("检查完毕", data["message"])
-        # 验证 message_en 字段存在（供前端 pickApiMessage 使用）
-        self.assertEqual(data.get("message_en"), "Watchtower check complete, already up to date")
-
-    def test_watchtower_non_200(self):
-        """Watchtower 返回非 200 时返回 502"""
-        client = self.app.test_client()
-        self._login(client)
-        with patch.dict(os.environ, {"WATCHTOWER_HTTP_API_TOKEN": "test-token"}):
-            with patch(URLOPEN_PATH) as mock_urlopen:
-                mock_resp = MagicMock()
-                mock_resp.status = 403
-                mock_resp.read.return_value = b"Forbidden"
-                mock_resp.__enter__ = lambda s: mock_resp
-                mock_resp.__exit__ = MagicMock(return_value=False)
-                mock_urlopen.return_value = mock_resp
-
-                resp = client.post("/api/system/trigger-update")
-
-        self.assertEqual(resp.status_code, 502)
-        data = resp.get_json()
-        self.assertFalse(data["success"])
-
-    def test_watchtower_connection_refused(self):
-        """Watchtower 连接失败时返回 503"""
-        import urllib.error
-
-        client = self.app.test_client()
-        self._login(client)
-        with patch.dict(os.environ, {"WATCHTOWER_HTTP_API_TOKEN": "test-token"}):
-            with patch(
-                URLOPEN_PATH,
-                side_effect=urllib.error.URLError("Connection refused"),
-            ):
-                resp = client.post("/api/system/trigger-update")
-
-        self.assertEqual(resp.status_code, 503)
-        data = resp.get_json()
-        self.assertFalse(data["success"])
-        self.assertIn("无法连接 Watchtower", data["message"])
-
-    def test_watchtower_generic_exception(self):
-        """Watchtower 其他异常时返回 500"""
-        client = self.app.test_client()
-        self._login(client)
-        with patch.dict(os.environ, {"WATCHTOWER_HTTP_API_TOKEN": "test-token"}):
-            with patch(
-                URLOPEN_PATH,
-                side_effect=RuntimeError("unexpected"),
-            ):
-                resp = client.post("/api/system/trigger-update")
-
-        self.assertEqual(resp.status_code, 500)
-        data = resp.get_json()
-        self.assertFalse(data["success"])
-
-    def test_authorization_header_bearer_token(self):
-        """请求 Watchtower 时 Authorization 头格式正确"""
-        client = self.app.test_client()
-        self._login(client)
-        with patch.dict(
-            os.environ,
-            {
-                "WATCHTOWER_HTTP_API_TOKEN": "my-secret-token",
-                "WATCHTOWER_API_URL": "http://wt:8080",
-            },
-        ):
-            with patch(URLOPEN_PATH) as mock_urlopen:
-                mock_resp = MagicMock()
-                mock_resp.status = 200
-                mock_resp.read.return_value = b""
-                mock_resp.__enter__ = lambda s: mock_resp
-                mock_resp.__exit__ = MagicMock(return_value=False)
-                mock_urlopen.return_value = mock_resp
-
-                client.post("/api/system/trigger-update")
-
-                req_obj = mock_urlopen.call_args[0][0]
-                self.assertEqual(req_obj.get_header("Authorization"), "Bearer my-secret-token")
-                self.assertIn("wt:8080/v1/update", req_obj.full_url)
-
-    def test_env_var_names(self):
-        """使用正确的环境变量名 WATCHTOWER_API_URL + WATCHTOWER_HTTP_API_TOKEN"""
-        client = self.app.test_client()
-        self._login(client)
-        with patch.dict(
-            os.environ,
-            {
-                "WATCHTOWER_HTTP_API_TOKEN": "tok",
-                "WATCHTOWER_API_URL": "http://custom:9999",
-            },
-        ):
-            with patch(URLOPEN_PATH) as mock_urlopen:
-                mock_resp = MagicMock()
-                mock_resp.status = 200
-                mock_resp.read.return_value = b""
-                mock_resp.__enter__ = lambda s: mock_resp
-                mock_resp.__exit__ = MagicMock(return_value=False)
-                mock_urlopen.return_value = mock_resp
-
-                client.post("/api/system/trigger-update")
-
-                req_obj = mock_urlopen.call_args[0][0]
-                self.assertIn("custom:9999/v1/update", req_obj.full_url)
-
-
 class AuthProtectionTests(unittest.TestCase):
     """未登录时接口鉴权拦截"""
 
@@ -513,16 +337,6 @@ class AuthProtectionTests(unittest.TestCase):
         client = self.app.test_client()
         resp = client.get("/api/system/version-check")
         self.assertEqual(resp.status_code, 401)
-
-    def test_trigger_update_requires_login(self):
-        """未登录 POST /api/system/trigger-update 返回 401"""
-        client = self.app.test_client()
-        resp = client.post("/api/system/trigger-update")
-        self.assertEqual(resp.status_code, 401)
-
-
-class HTMLTemplateTests(unittest.TestCase):
-    """HTML 模板中 Banner 结构校验"""
 
     @classmethod
     def setUpClass(cls):
@@ -558,24 +372,24 @@ class HTMLTemplateTests(unittest.TestCase):
         self.assertIn('class="version-update-banner d-none"', html)
 
     def test_banner_has_correct_ids(self):
-        """Banner 包含正确的 id"""
+        """Banner 包含正确的 id（一键更新已移除，无 trigger 按钮）"""
         client = self.app.test_client()
         self._login(client)
         resp = client.get("/")
         html = resp.get_data(as_text=True)
         self.assertIn('id="versionUpdateBanner"', html)
         self.assertIn('id="versionUpdateMsg"', html)
-        self.assertIn('id="btnTriggerUpdate"', html)
+        self.assertNotIn('id="btnTriggerUpdate"', html)
 
-    def test_banner_has_trigger_and_dismiss_buttons(self):
-        """Banner 包含"立即更新"和"忽略"按钮"""
+    def test_banner_has_dismiss_button(self):
+        """Banner 包含"忽略"按钮；一键更新按钮已移除"""
         client = self.app.test_client()
         self._login(client)
         resp = client.get("/")
         html = resp.get_data(as_text=True)
-        self.assertIn("triggerUpdate()", html)
+        self.assertNotIn("triggerUpdate()", html)
         self.assertIn("dismissVersionBanner()", html)
-        self.assertIn("立即更新", html)
+        self.assertNotIn("立即更新", html)
         self.assertIn("忽略", html)
 
     def test_sidebar_has_version_number(self):
@@ -657,11 +471,6 @@ class JSContractTests(unittest.TestCase):
         js = self._get_js()
         self.assertIn("async function checkVersionUpdate()", js)
 
-    def test_trigger_update_function(self):
-        """triggerUpdate 函数存在"""
-        js = self._get_js()
-        self.assertIn("async function triggerUpdate()", js)
-
     def test_dismiss_version_banner_function(self):
         """dismissVersionBanner 函数存在"""
         js = self._get_js()
@@ -671,11 +480,6 @@ class JSContractTests(unittest.TestCase):
         """getCSRFToken 函数存在"""
         js = self._get_js()
         self.assertIn("function getCSRFToken()", js)
-
-    def test_wait_for_restart_function(self):
-        """waitForRestart 函数存在"""
-        js = self._get_js()
-        self.assertIn("async function waitForRestart()", js)
 
     def test_uses_current_version_not_current(self):
         """JS 中版本检测使用 data.current_version 而非 data.current"""
@@ -700,25 +504,6 @@ class JSContractTests(unittest.TestCase):
             f"不应有 data.latest（应为 data.latest_version）: {bare_latest}",
         )
 
-    def test_trigger_uses_csrf_token(self):
-        """triggerUpdate 请求包含 CSRFToken"""
-        js = self._get_js()
-        idx = js.index("async function triggerUpdate()")
-        block_end = js.index("async function waitForRestart()", idx)
-        block = js[idx:block_end]
-        self.assertIn("X-CSRFToken", block)
-        self.assertIn("getCSRFToken()", block)
-
-    def test_wait_for_restart_polls_healthz(self):
-        """waitForRestart 轮询 /healthz"""
-        js = self._get_js()
-        idx = js.index("async function waitForRestart()")
-        block_end = len(js)
-        block = js[idx:block_end]
-        self.assertIn("/healthz", block)
-        self.assertIn("90000", block)  # MAX_WAIT_MS
-        self.assertIn("3000", block)  # POLL_INTERVAL_MS
-
     def test_no_show_update_guide(self):
         """不包含旧的 showUpdateGuide 函数"""
         js = self._get_js()
@@ -741,33 +526,8 @@ class JSContractTests(unittest.TestCase):
         """忽略 Banner 时清除 #app padding-top"""
         js = self._get_js()
         idx = js.index("function dismissVersionBanner()")
-        block_end = js.index("async function triggerUpdate()", idx)
-        block = js[idx:block_end]
+        block = js[idx:]
         self.assertIn("paddingTop = ''", block)
-
-
-class EnvExampleTests(unittest.TestCase):
-    """.env.example 环境变量名校验"""
-
-    def test_watchtower_env_vars(self):
-        env_path = os.path.join(os.path.dirname(__file__), "..", ".env.example")
-        if not os.path.exists(env_path):
-            self.skipTest(".env.example not found")
-        with open(env_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        self.assertIn("WATCHTOWER_API_URL", content)
-        self.assertIn("WATCHTOWER_HTTP_API_TOKEN", content)
-        # 旧变量名不应存在
-        self.assertNotIn("WATCHTOWER_BASE_URL", content)
-        # WATCHTOWER_API_TOKEN（不含 HTTP）不应出现
-        for line in content.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("#"):
-                continue
-            self.assertFalse(
-                re.match(r"^WATCHTOWER_API_TOKEN\s*=", stripped),
-                f"不应有 WATCHTOWER_API_TOKEN（应为 WATCHTOWER_HTTP_API_TOKEN）: {stripped}",
-            )
 
 
 if __name__ == "__main__":

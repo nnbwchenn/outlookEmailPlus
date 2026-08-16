@@ -228,23 +228,6 @@ def api_get_settings() -> Any:
     )
     safe_settings["telegram_proxy_url"] = settings_repo.get_telegram_proxy_url()
 
-    # Watchtower 一键更新配置
-    wt_url_raw = all_settings.get("watchtower_url", "")
-    safe_settings["watchtower_url"] = wt_url_raw or ""
-    wt_token_raw = all_settings.get("watchtower_token", "")
-    if wt_token_raw and is_encrypted(wt_token_raw):
-        try:
-            plain_token = decrypt_data(wt_token_raw)
-            safe_settings["watchtower_token"] = "****" + plain_token[-4:] if len(plain_token) > 4 else "****"
-        except Exception:
-            safe_settings["watchtower_token"] = "****"
-    else:
-        safe_settings["watchtower_token"] = ""
-
-    # 更新方式配置（watchtower / docker_api）
-    update_method = all_settings.get("update_method", "watchtower")
-    safe_settings["update_method"] = update_method if update_method in ["watchtower", "docker_api"] else "watchtower"
-
     # 读取 ui_layout_v2 布局状态
     ui_layout = settings_repo.get_ui_layout_v2()
     if not ui_layout or ui_layout.get("version") != 2:
@@ -847,34 +830,6 @@ def api_update_settings() -> Any:
         tg_proxy = str(data["telegram_proxy_url"]).strip()
         queue_setting_update("telegram_proxy_url", tg_proxy)
         updated.append("Telegram 代理地址")
-
-    # Watchtower 一键更新配置
-    if "watchtower_url" in data:
-        wt_url = str(data["watchtower_url"]).strip()
-        queue_setting_update("watchtower_url", wt_url)
-        updated.append("Watchtower URL")
-
-    if "watchtower_token" in data:
-        wt_token = str(data["watchtower_token"]).strip()
-        if wt_token and wt_token != "" and not wt_token.startswith("****"):
-            encrypted_wt_token = encrypt_data(wt_token)
-            queue_setting_update("watchtower_token", encrypted_wt_token)
-            updated.append("Watchtower Token")
-        elif not wt_token:
-            queue_setting_update("watchtower_token", "")
-            updated.append("Watchtower Token（已清空）")
-        else:
-            # 脱敏占位符（****xxx），跳过不覆盖
-            updated.append("Watchtower Token（未变更）")
-
-    # 更新方式配置（watchtower / docker_api）
-    if "update_method" in data:
-        method = str(data["update_method"]).strip().lower()
-        if method in ["watchtower", "docker_api"]:
-            queue_setting_update("update_method", method)
-            updated.append("更新方式")
-        else:
-            errors.append(f"不支持的更新方式: {method} （仅支持 watchtower / docker_api）")
 
     # 更新 ui_layout_v2 布局状态
     if "ui_layout_v2" in data:

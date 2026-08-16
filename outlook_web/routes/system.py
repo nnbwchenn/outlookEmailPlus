@@ -48,26 +48,11 @@ def create_blueprint() -> Blueprint:
         methods=["GET"],
     )
 
-    # FD: 版本更新检测与一键更新
+    # FD: 版本更新检测
     bp.add_url_rule(
         "/api/system/version-check",
         view_func=system_controller.api_version_check,
         methods=["GET"],
-    )
-    bp.add_url_rule(
-        "/api/system/trigger-update",
-        view_func=system_controller.api_trigger_update,
-        methods=["POST"],
-    )
-    bp.add_url_rule(
-        "/api/system/deployment-info",
-        view_func=system_controller.api_deployment_info,
-        methods=["GET"],
-    )
-    bp.add_url_rule(
-        "/api/system/test-watchtower",
-        view_func=system_controller.api_test_watchtower,
-        methods=["POST"],
     )
 
     return bp
