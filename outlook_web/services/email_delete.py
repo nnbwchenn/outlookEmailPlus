@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 from outlook_web.errors import build_error_payload
 
 
-def summarize_fallback_failures(method_errors: Dict[str, Any], labels: Dict[str, str]) -> str:
+def summarize_fallback_failures(method_errors: dict[str, Any], labels: dict[str, str]) -> str:
     """将多方式回退的失败原因聚合成“中文可理解”的摘要文本（用于 error.details 展示）。"""
-    lines: List[str] = []
+    lines: list[str] = []
 
     for key, label in labels.items():
         if key not in method_errors:
@@ -20,7 +21,7 @@ def summarize_fallback_failures(method_errors: Dict[str, Any], labels: Dict[str,
             msg = (err.get("message") or err.get("error") or "").strip()
             code = (err.get("code") or "").strip()
             status = err.get("status")
-            meta_parts: List[str] = []
+            meta_parts: list[str] = []
             if code:
                 meta_parts.append(f"code={code}")
             if status:
@@ -50,13 +51,13 @@ def delete_emails_with_fallback(
     email_addr: str,
     client_id: str,
     refresh_token: str,
-    message_ids: List[str],
+    message_ids: list[str],
     proxy_url: str,
-    delete_emails_graph: Callable[[str, str, List[str], Optional[str]], Dict[str, Any]],
-    delete_emails_imap: Callable[[str, str, str, List[str], str], Dict[str, Any]],
+    delete_emails_graph: Callable[[str, str, list[str], str | None], dict[str, Any]],
+    delete_emails_imap: Callable[[str, str, str, list[str], str], dict[str, Any]],
     imap_server_new: str,
     imap_server_old: str,
-) -> Tuple[Dict[str, Any], Optional[str]]:
+) -> tuple[dict[str, Any], str | None]:
     """
     删除邮件（Graph 优先，IMAP 回退）并保持对外错误聚合结构一致。
 
@@ -76,7 +77,7 @@ def delete_emails_with_fallback(
     if is_proxy_error:
         return graph_res, None
 
-    method_errors: Dict[str, Any] = {
+    method_errors: dict[str, Any] = {
         "graph": graph_error or graph_errors_list or "Graph API 删除失败",
     }
 

@@ -11,7 +11,7 @@ import html
 import re
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 验证码关键词列表（支持中英文）
 VERIFICATION_KEYWORDS = [
@@ -99,7 +99,7 @@ class VerificationPolicy:
     code_regex: str | None = None
     code_length: str | None = None
     code_source: str = "all"
-    prefer_link_keywords: List[str] = field(default_factory=lambda: list(DEFAULT_LINK_KEYWORDS))
+    prefer_link_keywords: list[str] = field(default_factory=lambda: list(DEFAULT_LINK_KEYWORDS))
     enforce_mutual_exclusion: bool = True
     apply_confidence_gate: bool = False
     expected_field: str | None = None  # code | link | any
@@ -118,7 +118,7 @@ class VerificationInput:
     body_content_type: str = ""
 
     @classmethod
-    def from_email_dict(cls, email: Dict[str, Any]) -> VerificationInput:
+    def from_email_dict(cls, email: dict[str, Any]) -> VerificationInput:
         payload = email or {}
         return cls(
             subject=str(payload.get("subject") or "").strip(),
@@ -130,7 +130,7 @@ class VerificationInput:
             body_content_type=str(payload.get("bodyContentType") or "").strip(),
         )
 
-    def as_legacy_email_dict(self) -> Dict[str, Any]:
+    def as_legacy_email_dict(self) -> dict[str, Any]:
         return {
             "subject": self.subject,
             "body": self.body,
@@ -147,7 +147,7 @@ class HTMLTextExtractor(HTMLParser):
 
     def __init__(self) -> None:
         super().__init__()
-        self.text_parts: List[str] = []
+        self.text_parts: list[str] = []
         self._skip_tags = {"style", "script", "head", "meta", "link"}
         self._current_skip = False
 
@@ -197,7 +197,7 @@ def extract_content_text_without_subject(email_input: VerificationInput) -> str:
     return ""
 
 
-def extract_email_text(email: Dict[str, Any]) -> str:
+def extract_email_text(email: dict[str, Any]) -> str:
     email_input = VerificationInput.from_email_dict(email)
     content = extract_content_text_without_subject(email_input)
     if content:
@@ -255,7 +255,7 @@ def _has_code_context(email_content: str) -> bool:
     return any(phrase.lower() in content_lower for phrase in CODE_CONTEXT_PHRASES)
 
 
-def _find_hyphenated_code_in_text(text: str) -> Optional[str]:
+def _find_hyphenated_code_in_text(text: str) -> str | None:
     if not text:
         return None
 
@@ -266,7 +266,7 @@ def _find_hyphenated_code_in_text(text: str) -> Optional[str]:
     return None
 
 
-def smart_extract_hyphenated_verification_code(email_content: str) -> Optional[str]:
+def smart_extract_hyphenated_verification_code(email_content: str) -> str | None:
     if not email_content:
         return None
 
@@ -285,13 +285,13 @@ def smart_extract_hyphenated_verification_code(email_content: str) -> Optional[s
     return None
 
 
-def fallback_extract_hyphenated_verification_code(email_content: str) -> Optional[str]:
+def fallback_extract_hyphenated_verification_code(email_content: str) -> str | None:
     if not email_content or not _has_code_context(email_content):
         return None
     return _find_hyphenated_code_in_text(email_content)
 
 
-def smart_extract_verification_code(email_content: str) -> Optional[str]:
+def smart_extract_verification_code(email_content: str) -> str | None:
     if not email_content:
         return None
 
@@ -313,11 +313,11 @@ def smart_extract_verification_code(email_content: str) -> Optional[str]:
     return smart_extract_hyphenated_verification_code(email_content)
 
 
-def fallback_extract_verification_code(email_content: str) -> Optional[str]:
+def fallback_extract_verification_code(email_content: str) -> str | None:
     if not email_content:
         return None
 
-    filtered: List[str] = []
+    filtered: list[str] = []
     for match in re.findall(VERIFICATION_PATTERN, email_content, re.IGNORECASE):
         if not any(c.isdigit() for c in match):
             continue
@@ -341,7 +341,7 @@ def fallback_extract_verification_code(email_content: str) -> Optional[str]:
     return fallback_extract_hyphenated_verification_code(email_content)
 
 
-def smart_extract_code_by_keywords(email_content: str, code_re: re.Pattern[str]) -> Optional[str]:
+def smart_extract_code_by_keywords(email_content: str, code_re: re.Pattern[str]) -> str | None:
     if not email_content:
         return None
 
@@ -362,11 +362,11 @@ def smart_extract_code_by_keywords(email_content: str, code_re: re.Pattern[str])
     return None
 
 
-def fallback_extract_code(email_content: str, code_re: re.Pattern[str]) -> Optional[str]:
+def fallback_extract_code(email_content: str, code_re: re.Pattern[str]) -> str | None:
     if not email_content:
         return None
 
-    candidates: List[str] = []
+    candidates: list[str] = []
     for match in code_re.finditer(email_content):
         value = match.group(0) or ""
         if not value or not any(c.isdigit() for c in value):
@@ -388,13 +388,13 @@ def fallback_extract_code(email_content: str, code_re: re.Pattern[str]) -> Optio
     return candidates[0] if candidates else None
 
 
-def extract_links(email_content: str) -> List[str]:
+def extract_links(email_content: str) -> list[str]:
     if not email_content:
         return []
 
     cleaned_links = [link.rstrip(".,;:!?)>'\"") for link in re.findall(LINK_PATTERN, email_content, re.IGNORECASE)]
     seen: set[str] = set()
-    unique_links: List[str] = []
+    unique_links: list[str] = []
     for link in cleaned_links:
         if link not in seen:
             seen.add(link)
@@ -402,7 +402,7 @@ def extract_links(email_content: str) -> List[str]:
     return unique_links
 
 
-def pick_preferred_link(links: List[str], prefer_link_keywords: List[str]) -> Optional[str]:
+def pick_preferred_link(links: list[str], prefer_link_keywords: list[str]) -> str | None:
     if not links:
         return None
 
@@ -435,7 +435,7 @@ def extract_verification_code_from_text(
     *,
     code_regex: str | None,
     code_length: str | None,
-) -> tuple[Optional[str], str]:
+) -> tuple[str | None, str]:
     code_re = build_code_regex(code_regex=code_regex, code_length=code_length)
     caller_directed_code = bool(code_regex)
 
@@ -463,7 +463,7 @@ def extract_verification_code_from_text(
 def extract_verification(
     email_input: VerificationInput,
     policy: VerificationPolicy | None = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     统一验证码/链接提取入口。
 
@@ -503,7 +503,7 @@ def extract_verification(
 
     confidence = "high" if code_confidence == "high" or link_confidence == "high" else "low"
 
-    parts: List[str] = []
+    parts: list[str] = []
     if verification_code:
         parts.append(verification_code)
     if verification_link:
@@ -537,7 +537,7 @@ def extract_verification(
     return result
 
 
-def apply_confidence_gate(extracted: Dict[str, Any], *, enforce_mutual_exclusion: bool = True) -> Dict[str, Any]:
+def apply_confidence_gate(extracted: dict[str, Any], *, enforce_mutual_exclusion: bool = True) -> dict[str, Any]:
     result = dict(extracted)
 
     if result.get("code_confidence") != "high":
@@ -558,7 +558,7 @@ def apply_confidence_gate(extracted: Dict[str, Any], *, enforce_mutual_exclusion
 
 
 def policy_from_resolved(
-    resolved: Dict[str, Any] | None,
+    resolved: dict[str, Any] | None,
     *,
     code_source: str = "all",
     enforce_mutual_exclusion: bool = True,
@@ -577,7 +577,7 @@ def policy_from_resolved(
 
 
 def extract_verification_from_email_dict(
-    email: Dict[str, Any],
+    email: dict[str, Any],
     *,
     code_regex: str | None = None,
     code_length: str | None = None,
@@ -585,7 +585,7 @@ def extract_verification_from_email_dict(
     prefer_link_keywords: list[str] | None = None,
     enforce_mutual_exclusion: bool = True,
     apply_confidence_gate_after: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """兼容旧 extract_verification_info_with_options 签名的薄封装。"""
     policy = VerificationPolicy(
         code_regex=code_regex,

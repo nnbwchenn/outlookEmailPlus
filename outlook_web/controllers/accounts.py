@@ -4,12 +4,11 @@ import html
 import json
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import quote
 
 from flask import Response, g, jsonify, request
 
-from outlook_web import config
 from outlook_web.audit import log_audit
 from outlook_web.db import get_db
 from outlook_web.errors import (
@@ -22,11 +21,6 @@ from outlook_web.repositories import groups as groups_repo
 from outlook_web.repositories import refresh_logs as refresh_logs_repo
 from outlook_web.repositories import settings as settings_repo
 from outlook_web.repositories import tags as tags_repo
-from outlook_web.repositories.distributed_locks import (
-    acquire_distributed_lock,
-    release_distributed_lock,
-)
-from outlook_web.repositories.refresh_runs import create_refresh_run, finish_refresh_run
 from outlook_web.security.auth import get_client_ip, get_user_agent, login_required
 from outlook_web.security.crypto import decrypt_data
 from outlook_web.services import graph as graph_service
@@ -66,7 +60,7 @@ def _parse_bool_flag(value: Any, default: bool = False) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _normalize_account_status(status: Any) -> Optional[str]:
+def _normalize_account_status(status: Any) -> str | None:
     normalized_status = str(status or "").strip().lower()
     if normalized_status not in {"active", "inactive", "disabled"}:
         return None
@@ -131,8 +125,7 @@ def api_get_accounts() -> Any:
     sort_by = (request.args.get("sort_by", type=str) or "refresh_time").strip().lower()
     sort_order = (request.args.get("sort_order", type=str) or "asc").strip().lower()
 
-    if page < 1:
-        page = 1
+    page = max(page, 1)
     page_size = max(1, min(page_size, 100))
     if sort_by not in {"refresh_time", "email"}:
         sort_by = "refresh_time"
@@ -141,7 +134,7 @@ def api_get_accounts() -> Any:
 
     raw_tag_values = request.args.getlist("tag_id")
     raw_tag_values.extend((request.args.get("tag_ids", type=str) or "").split(","))
-    tag_ids: List[int] = []
+    tag_ids: list[int] = []
     seen_tag_ids = set()
     for raw_value in raw_tag_values:
         raw_text = str(raw_value or "").strip()
@@ -169,7 +162,7 @@ def api_get_accounts() -> Any:
 
     # 获取每个账号的最后刷新状态（批量查询，避免 N+1）
     db = get_db()
-    last_log_by_account: Dict[int, Dict[str, Any]] = {}
+    last_log_by_account: dict[int, dict[str, Any]] = {}
     try:
         account_ids = [int(a.get("id")) for a in accounts if a.get("id") is not None]
     except Exception:
@@ -345,7 +338,7 @@ def api_add_account() -> Any:
         text = "".join(ch for ch in text if ch.isprintable())
         return text
 
-    def parse_account_string(line: str) -> Optional[Dict[str, str]]:
+    def parse_account_string(line: str) -> dict[str, str] | None:
         """解析账号字符串（格式：email----password----client_id----refresh_token）"""
         parts = line.strip().split("----")
         if len(parts) >= 4:
@@ -365,7 +358,7 @@ def api_add_account() -> Any:
     raw_lines = account_str.splitlines()
     imported = 0
     failed = 0
-    errors: List[Dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
     errors_total = 0
     max_error_details = 50
 
@@ -752,7 +745,7 @@ def _detect_line_type(
     line: str,
     fallback_host: str = "",
     fallback_port: int = 993,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     根据分隔后的段数和内容特征，自动判断一行账号的类型。
     返回 {"type", "provider", "fields", "error", "auto_group_name"}。
@@ -767,7 +760,7 @@ def _detect_line_type(
     parts = line.split("----")
     n = len(parts)
 
-    def _err(msg: str) -> Dict[str, Any]:
+    def _err(msg: str) -> dict[str, Any]:
         return {
             "type": "error",
             "provider": "",
@@ -930,8 +923,8 @@ def _detect_line_type(
 
 def _resolve_auto_group(
     provider: str,
-    group_cache: Dict[str, int],
-    groups_created: List[str],
+    group_cache: dict[str, int],
+    groups_created: list[str],
 ) -> int:
     """根据 provider 查找或创建分组，使用缓存避免重复查询。"""
     from outlook_web.services.providers import PROVIDER_GROUP_NAME
@@ -963,9 +956,9 @@ def _resolve_auto_group(
     return default_id
 
 
-def _overwrite_account(existing: Dict, detect_result: Dict, group_id: int, add_to_pool: bool = False) -> bool:
+def _overwrite_account(existing: dict, detect_result: dict, group_id: int, add_to_pool: bool = False) -> bool:
     """覆盖更新已存在账号的凭据字段，保留 remark/tags/status。"""
-    fields: Dict[str, Any] = {"group_id": group_id}
+    fields: dict[str, Any] = {"group_id": group_id}
     d = detect_result
     prov = d["provider"]
     f = d["fields"]
@@ -990,7 +983,7 @@ def _overwrite_account(existing: Dict, detect_result: Dict, group_id: int, add_t
     return accounts_repo.update_account_credentials(existing["id"], **fields)
 
 
-def _handle_auto_import(data: Dict[str, Any], *, add_to_pool: bool = False) -> Any:
+def _handle_auto_import(data: dict[str, Any], *, add_to_pool: bool = False) -> Any:
     """处理 provider="auto" 的智能混合导入。"""
     account_str = data.get("account_string", "")
     duplicate_strategy = (data.get("duplicate_strategy") or "skip").strip().lower()
@@ -1046,12 +1039,12 @@ def _handle_auto_import(data: Dict[str, Any], *, add_to_pool: bool = False) -> A
     imported = 0
     skipped = 0
     failed = 0
-    by_provider: Dict[str, Dict[str, int]] = {}
-    groups_created: List[str] = []
-    errors: List[Dict[str, Any]] = []
+    by_provider: dict[str, dict[str, int]] = {}
+    groups_created: list[str] = []
+    errors: list[dict[str, Any]] = []
     errors_total = 0
     max_error_details = 50
-    group_cache: Dict[str, int] = {}
+    group_cache: dict[str, int] = {}
 
     for line_num, raw in enumerate(raw_lines, 1):
         line = (raw or "").strip()
@@ -1213,7 +1206,7 @@ def _handle_auto_import(data: Dict[str, Any], *, add_to_pool: bool = False) -> A
 @login_required
 def api_update_account(account_id: int) -> Any:
     """更新账号"""
-    db = get_db()
+    get_db()
     data = request.json
 
     # 检查是否只更新状态
@@ -1451,7 +1444,7 @@ def api_batch_update_status() -> Any:
             status=400,
         )
 
-    deduped_ids: List[int] = []
+    deduped_ids: list[int] = []
     seen_ids = set()
     for aid in parsed_ids:
         if aid in seen_ids:
@@ -1534,7 +1527,7 @@ def api_batch_notification_toggle() -> Any:
             status=400,
         )
 
-    deduped_ids: List[int] = []
+    deduped_ids: list[int] = []
     seen_ids = set()
     for aid in parsed_ids:
         if aid in seen_ids:
@@ -1544,7 +1537,7 @@ def api_batch_notification_toggle() -> Any:
 
     updated_count = 0
     failed_count = 0
-    missing_ids: List[int] = []
+    missing_ids: list[int] = []
 
     for aid in deduped_ids:
         success = accounts_repo.toggle_telegram_push(aid, enabled)
@@ -1675,7 +1668,7 @@ def api_batch_delete_accounts() -> Any:
 def api_batch_manage_tags() -> Any:
     """批量管理账号标签"""
     data = request.json
-    account_ids: List[int] = data.get("account_ids", [])
+    account_ids: list[int] = data.get("account_ids", [])
     tag_id = data.get("tag_id")
     action = data.get("action")  # add, remove
 
@@ -1687,9 +1680,8 @@ def api_batch_manage_tags() -> Any:
         if action == "add":
             if tags_repo.add_account_tag(acc_id, tag_id):
                 count += 1
-        elif action == "remove":
-            if tags_repo.remove_account_tag(acc_id, tag_id):
-                count += 1
+        elif action == "remove" and tags_repo.remove_account_tag(acc_id, tag_id):
+            count += 1
 
     try:
         details = json.dumps(
@@ -1807,14 +1799,14 @@ def api_search_accounts() -> Any:
     rows = cursor.fetchall()
 
     # 批量加载标签与最后刷新状态，避免 N+1 查询
-    account_rows: List[Dict[str, Any]] = [dict(r) for r in rows]
+    account_rows: list[dict[str, Any]] = [dict(r) for r in rows]
     try:
         account_ids = [int(a.get("id")) for a in account_rows if a.get("id") is not None]
     except Exception:
         account_ids = []
 
-    tags_by_account: Dict[int, List[Dict[str, Any]]] = {}
-    last_log_by_account: Dict[int, Dict[str, Any]] = {}
+    tags_by_account: dict[int, list[dict[str, Any]]] = {}
+    last_log_by_account: dict[int, dict[str, Any]] = {}
     if account_ids:
         try:
             placeholders = ",".join(["?"] * len(account_ids))
@@ -1907,14 +1899,14 @@ def api_search_accounts() -> Any:
 # ==================== 导出功能 API ====================
 
 
-def _build_export_text(accounts: List[Dict[str, Any]]) -> str:
+def _build_export_text(accounts: list[dict[str, Any]]) -> str:
     """构建导出文本 v2：头部元信息 + 分段。"""
     import io
 
     from outlook_web.services.providers import MAIL_PROVIDERS, get_provider_list
 
-    outlook_lines: List[str] = []
-    imap_groups: Dict[str, List[str]] = {}
+    outlook_lines: list[str] = []
+    imap_groups: dict[str, list[str]] = {}
 
     for acc in accounts or []:
         atype = (acc.get("account_type") or "outlook").strip().lower()
@@ -2177,7 +2169,7 @@ def api_refresh_account(account_id: int) -> Any:
     try:
         refresh_token = decrypt_data(encrypted_refresh_token) if encrypted_refresh_token else encrypted_refresh_token
     except Exception as e:
-        error_msg = f"解密 token 失败: {str(e)}"
+        error_msg = f"解密 token 失败: {e!s}"
         refresh_logs_repo.log_refresh_result(account_id, account_email, "manual", "failed", error_msg)
         error_payload = build_error_payload("TOKEN_DECRYPT_FAILED", "Token 解密失败", "DecryptionError", 500, error_msg)
         return jsonify({"success": False, "error": error_payload})

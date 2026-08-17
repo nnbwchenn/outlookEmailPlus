@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
 
 from outlook_web import config
 from outlook_web.db import create_sqlite_connection, get_db
@@ -55,7 +54,7 @@ def set_setting(key: str, value: str, *, commit: bool = True) -> bool:
             db.close()
 
 
-def get_all_settings() -> Dict[str, str]:
+def get_all_settings() -> dict[str, str]:
     """获取所有设置"""
     db = None
     temp_conn = False
@@ -185,7 +184,6 @@ def get_external_api_public_mode() -> bool:
 
 def get_external_api_ip_whitelist() -> list:
     """IP 白名单列表（JSON 数组，支持 CIDR 如 '192.168.1.0/24'）。"""
-    import json
 
     raw = get_setting("external_api_ip_whitelist", "[]")
     try:
@@ -236,7 +234,6 @@ def get_external_api_disable_pool_stats() -> bool:
 
 def get_ui_layout_v2() -> dict:
     """读取前端布局状态"""
-    import json
 
     raw = get_setting("ui_layout_v2", "{}")
     try:
@@ -247,7 +244,6 @@ def get_ui_layout_v2() -> dict:
 
 def set_ui_layout_v2(layout: dict) -> None:
     """写入前端布局状态"""
-    import json
 
     set_setting("ui_layout_v2", json.dumps(layout, ensure_ascii=False))
 

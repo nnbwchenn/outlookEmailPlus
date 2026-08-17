@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 from outlook_web.db import get_db
 

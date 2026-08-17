@@ -3,7 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from flask import g, jsonify, redirect, render_template, request, send_from_directory, session, url_for
+from flask import (
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
 
 from outlook_web.errors import build_error_payload
 from outlook_web.repositories import settings as settings_repo

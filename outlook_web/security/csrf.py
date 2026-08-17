@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Optional, Tuple
+from collections.abc import Callable
 
 try:
     from flask_wtf.csrf import CSRFProtect
@@ -21,7 +21,7 @@ def generate_csrf():
     return None
 
 
-def init_csrf(app) -> Tuple[Optional[object], Callable, Optional[Callable]]:
+def init_csrf(app) -> tuple[object | None, Callable, Callable | None]:
     """
     初始化 CSRF 保护（如果可用）
     返回：csrf 实例、csrf_exempt 装饰器、generate_csrf 函数（可能为 None）

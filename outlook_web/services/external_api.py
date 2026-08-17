@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from email.utils import parseaddr, parsedate_to_datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 from outlook_web.audit import log_audit
 from outlook_web.repositories import accounts as accounts_repo
@@ -16,7 +17,9 @@ from outlook_web.services import imap as imap_service
 from outlook_web.services import (
     mailbox_resolver,
 )
-from outlook_web.services import verification_channel_routing as verification_channel_service
+from outlook_web.services import (
+    verification_channel_routing as verification_channel_service,
+)
 from outlook_web.services.imap_generic import (
     get_email_detail_imap_generic_result,
     get_emails_imap_generic,
@@ -127,11 +130,11 @@ class VerificationAiConfigIncompleteError(ExternalApiError):
     status = 400
 
 
-def ok(data: Any = None, *, message: str = "success") -> Dict[str, Any]:
+def ok(data: Any = None, *, message: str = "success") -> dict[str, Any]:
     return {"success": True, "code": "OK", "message": message, "data": data}
 
 
-def fail(code: str, message: str, *, data: Any = None) -> Dict[str, Any]:
+def fail(code: str, message: str, *, data: Any = None) -> dict[str, Any]:
     return {"success": False, "code": code, "message": message, "data": data}
 
 
@@ -139,7 +142,7 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _parse_datetime(value: str) -> Optional[datetime]:
+def _parse_datetime(value: str) -> datetime | None:
     if not value:
         return None
     text = str(value).strip()
@@ -167,7 +170,7 @@ def _parse_datetime(value: str) -> Optional[datetime]:
         return None
 
 
-def _format_datetime(dt: Optional[datetime], fallback: str = "") -> tuple[str, int]:
+def _format_datetime(dt: datetime | None, fallback: str = "") -> tuple[str, int]:
     if not dt:
         return (fallback or "", 0)
     try:
@@ -186,7 +189,7 @@ def _extract_email_address(value: str) -> str:
         return str(value or "")
 
 
-def get_current_external_api_consumer() -> Dict[str, Any]:
+def get_current_external_api_consumer() -> dict[str, Any]:
     return get_external_api_consumer() or {}
 
 
@@ -220,7 +223,7 @@ def ensure_external_email_scope(email_addr: str, *, allow_finished: bool = False
     mailbox_resolver.ensure_mailbox_can_read(mailbox, consumer=consumer, allow_finished=allow_finished)
 
 
-def _build_message_summary(email_addr: str, item: Dict[str, Any], *, method: str) -> Dict[str, Any]:
+def _build_message_summary(email_addr: str, item: dict[str, Any], *, method: str) -> dict[str, Any]:
     raw_from = item.get("from")
     if isinstance(raw_from, dict):
         from_address = (raw_from.get("emailAddress") or {}).get("address") or ""
@@ -256,7 +259,7 @@ def _build_message_summary(email_addr: str, item: Dict[str, Any], *, method: str
     }
 
 
-def _get_proxy_url(account: Dict[str, Any]) -> str:
+def _get_proxy_url(account: dict[str, Any]) -> str:
     proxy_url = ""
     group_id = account.get("group_id")
     if not group_id:
@@ -267,7 +270,7 @@ def _get_proxy_url(account: Dict[str, Any]) -> str:
     return proxy_url
 
 
-def require_account(email_addr: str) -> Dict[str, Any]:
+def require_account(email_addr: str) -> dict[str, Any]:
     email_addr = (email_addr or "").strip()
     if not email_addr:
         raise InvalidParamError("email 参数不能为空")
@@ -279,12 +282,12 @@ def require_account(email_addr: str) -> Dict[str, Any]:
     return account
 
 
-def _preferred_probe_method(account: Dict[str, Any]) -> str:
+def _preferred_probe_method(account: dict[str, Any]) -> str:
     account_type = (account.get("account_type") or "outlook").strip().lower()
     return "imap_generic" if account_type == "imap" else "graph"
 
 
-def _account_can_read(account: Dict[str, Any]) -> bool:
+def _account_can_read(account: dict[str, Any]) -> bool:
     status = (account.get("status") or "active").strip().lower()
     if status != "active":
         return False
@@ -294,11 +297,11 @@ def _account_can_read(account: Dict[str, Any]) -> bool:
     return bool((account.get("client_id") or "").strip()) and bool((account.get("refresh_token") or "").strip())
 
 
-def can_account_read(account: Dict[str, Any]) -> bool:
+def can_account_read(account: dict[str, Any]) -> bool:
     return _account_can_read(account)
 
 
-def ensure_account_can_read(account: Dict[str, Any]) -> Dict[str, Any]:
+def ensure_account_can_read(account: dict[str, Any]) -> dict[str, Any]:
     if _account_can_read(account):
         return account
     raise AccountAccessForbiddenError(
@@ -315,7 +318,7 @@ def _probe_now_iso() -> str:
     return _utcnow().replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def _probe_summary_from_row(row: Any) -> Dict[str, Any]:
+def _probe_summary_from_row(row: Any) -> dict[str, Any]:
     if not row:
         return {
             "upstream_probe_ok": None,
@@ -331,7 +334,7 @@ def _probe_summary_from_row(row: Any) -> Dict[str, Any]:
     }
 
 
-def get_upstream_probe_summary(scope_type: str, scope_key: str) -> Dict[str, Any]:
+def get_upstream_probe_summary(scope_type: str, scope_key: str) -> dict[str, Any]:
     from outlook_web.db import get_db
 
     db = get_db()
@@ -346,7 +349,7 @@ def get_upstream_probe_summary(scope_type: str, scope_key: str) -> Dict[str, Any
     return _probe_summary_from_row(row)
 
 
-def _is_probe_summary_fresh(summary: Dict[str, Any], cache_ttl_seconds: int) -> bool:
+def _is_probe_summary_fresh(summary: dict[str, Any], cache_ttl_seconds: int) -> bool:
     last_probe_at = summary.get("last_probe_at") or ""
     if not last_probe_at:
         return False
@@ -362,11 +365,11 @@ def record_upstream_probe_summary(
     scope_type: str,
     scope_key: str,
     email_addr: str,
-    probe_ok: Optional[bool],
+    probe_ok: bool | None,
     probe_method: str = "",
     last_probe_error: str = "",
-    last_probe_at: Optional[str] = None,
-) -> Dict[str, Any]:
+    last_probe_at: str | None = None,
+) -> dict[str, Any]:
     from outlook_web.db import get_db
 
     db = get_db()
@@ -411,12 +414,12 @@ def _probe_error_message(exc: Exception) -> str:
 
 
 def probe_account_upstream(
-    account: Dict[str, Any],
+    account: dict[str, Any],
     *,
     folder: str = "inbox",
     cache_ttl_seconds: int = 60,
     force: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     email_addr = str(account.get("email") or "").strip()
     preferred_method = _preferred_probe_method(account)
     cached = get_upstream_probe_summary("account", email_addr) if email_addr else {}
@@ -457,7 +460,7 @@ def probe_account_upstream(
     return summary
 
 
-def _pick_instance_probe_account() -> Optional[Dict[str, Any]]:
+def _pick_instance_probe_account() -> dict[str, Any] | None:
     candidates = accounts_repo.load_accounts()
     for account in candidates:
         if _account_can_read(account):
@@ -465,7 +468,7 @@ def _pick_instance_probe_account() -> Optional[Dict[str, Any]]:
     return None
 
 
-def probe_instance_upstream(*, cache_ttl_seconds: int = 60, force: bool = False) -> Dict[str, Any]:
+def probe_instance_upstream(*, cache_ttl_seconds: int = 60, force: bool = False) -> dict[str, Any]:
     cached = get_upstream_probe_summary("instance", "__instance__")
     if (not force) and _is_probe_summary_fresh(cached, cache_ttl_seconds):
         return cached
@@ -483,7 +486,7 @@ def list_messages_for_external(
     folder: str = "inbox",
     skip: int = 0,
     top: int = 20,
-) -> Tuple[List[Dict[str, Any]], str]:
+) -> tuple[list[dict[str, Any]], str]:
     mailbox = mailbox_resolver.resolve_mailbox(email_addr)
     mailbox_meta = mailbox_resolver.ensure_mailbox_can_read(mailbox, consumer=get_current_external_api_consumer())
     folder = (folder or "inbox").strip().lower() or "inbox"
@@ -574,18 +577,18 @@ def list_messages_for_external(
     )
 
 
-def filter_messages(  # noqa: C901
-    emails: List[Dict[str, Any]],
+def filter_messages(
+    emails: list[dict[str, Any]],
     *,
     from_contains: str = "",
     subject_contains: str = "",
-    since_minutes: Optional[int] = None,
-    baseline_timestamp: Optional[int] = None,
-) -> List[Dict[str, Any]]:
+    since_minutes: int | None = None,
+    baseline_timestamp: int | None = None,
+) -> list[dict[str, Any]]:
     from_contains = (from_contains or "").strip().lower()
     subject_contains = (subject_contains or "").strip().lower()
 
-    since_dt: Optional[datetime] = None
+    since_dt: datetime | None = None
     if since_minutes is not None:
         try:
             since_minutes_int = int(since_minutes)
@@ -594,7 +597,7 @@ def filter_messages(  # noqa: C901
         except Exception:
             since_dt = None
 
-    filtered: List[Dict[str, Any]] = []
+    filtered: list[dict[str, Any]] = []
     for e in emails or []:
         from_addr = str(e.get("from_address") or e.get("from") or "").lower()
         subj = str(e.get("subject") or "").lower()
@@ -609,9 +612,8 @@ def filter_messages(  # noqa: C901
                 continue
 
         # PR#27: claim_token baseline 过滤——只保留 claimed_at 之后的邮件
-        if baseline_timestamp is not None and baseline_timestamp > 0:
-            if int(e.get("timestamp") or 0) < baseline_timestamp:
-                continue
+        if baseline_timestamp is not None and baseline_timestamp > 0 and int(e.get("timestamp") or 0) < baseline_timestamp:
+            continue
 
         filtered.append(e)
     return filtered
@@ -623,9 +625,9 @@ def get_latest_message_for_external(
     folder: str = "inbox",
     from_contains: str = "",
     subject_contains: str = "",
-    since_minutes: Optional[int] = None,
-    baseline_timestamp: Optional[int] = None,
-) -> Dict[str, Any]:
+    since_minutes: int | None = None,
+    baseline_timestamp: int | None = None,
+) -> dict[str, Any]:
     emails = list_messages_for_external(email_addr=email_addr, folder=folder, skip=0, top=20)[0]
     filtered = filter_messages(
         emails,
@@ -641,12 +643,12 @@ def get_latest_message_for_external(
     return filtered[0]
 
 
-def get_message_detail_for_external(  # noqa: C901
+def get_message_detail_for_external(
     *,
     email_addr: str,
     message_id: str,
     folder: str = "inbox",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     mailbox = mailbox_resolver.resolve_mailbox(email_addr)
     mailbox_meta = mailbox_resolver.ensure_mailbox_can_read(mailbox, consumer=get_current_external_api_consumer())
     message_id = (message_id or "").strip()
@@ -782,14 +784,14 @@ def get_message_detail_for_external(  # noqa: C901
     }
 
 
-def _extract_sender_address_from_message_item(item: Dict[str, Any]) -> str:
+def _extract_sender_address_from_message_item(item: dict[str, Any]) -> str:
     raw_from = item.get("from")
     if isinstance(raw_from, dict):
         raw_from = (raw_from.get("emailAddress") or {}).get("address") or raw_from.get("address")
     return _extract_email_address(str(raw_from or item.get("from_address") or ""))
 
 
-def _build_email_obj_from_detail(detail: Dict[str, Any], latest_summary: Dict[str, Any]) -> Dict[str, Any]:
+def _build_email_obj_from_detail(detail: dict[str, Any], latest_summary: dict[str, Any]) -> dict[str, Any]:
     email_obj = {
         "subject": detail.get("subject") or latest_summary.get("subject") or "",
         "body_preview": latest_summary.get("content_preview") or "",
@@ -808,7 +810,7 @@ def _build_email_obj_from_detail(detail: Dict[str, Any], latest_summary: Dict[st
     return email_obj
 
 
-def _shape_verification_result_by_expected_field(extracted: Dict[str, Any], expected_field: str | None) -> Dict[str, Any]:
+def _shape_verification_result_by_expected_field(extracted: dict[str, Any], expected_field: str | None) -> dict[str, Any]:
     """按接口语义裁剪输出：code 接口只返回 code，link 接口只返回 link。"""
     if expected_field not in {"verification_code", "verification_link"}:
         return extracted
@@ -836,7 +838,7 @@ def _classify_extract_error(exc: Exception) -> str:
     return type(exc).__name__.upper()
 
 
-def _resolve_extract_log_channel(result: Optional[Dict[str, Any]], *, folder: str, method: str) -> str:
+def _resolve_extract_log_channel(result: dict[str, Any] | None, *, folder: str, method: str) -> str:
     # 确定日志渠道标签：优先使用渠道路由内置标记，回退到 method/folder 推断
     if result and result.get("_log_channel"):
         return str(result.get("_log_channel") or "")
@@ -848,7 +850,7 @@ def _resolve_extract_log_channel(result: Optional[Dict[str, Any]], *, folder: st
     return "unknown"
 
 
-def _strip_extract_log_fields(result: Dict[str, Any]) -> Dict[str, Any]:
+def _strip_extract_log_fields(result: dict[str, Any]) -> dict[str, Any]:
     # 移除日志埋点专用的内部字段，避免泄露给 API 调用方
     clean = dict(result or {})
     clean.pop("_log_channel", None)
@@ -864,15 +866,15 @@ def _get_db_for_log():
 
 def _write_extract_log(
     *,
-    account_id: Optional[int],
+    account_id: int | None,
     channel: str,
     started_at: float,
     finished_at: float,
     result_type: str,
-    code_found: Optional[str],
+    code_found: str | None,
     used_ai: bool,
-    error_code: Optional[str],
-    trace_id: Optional[str],
+    error_code: str | None,
+    trace_id: str | None,
 ) -> None:
     # 二次异常隔离：write_verification_extract_log 内部已静默，这里再加一层防止 get_db() 抛出
     try:
@@ -893,18 +895,18 @@ def _write_extract_log(
         pass
 
 
-def _extract_verification_with_memory_for_outlook(  # noqa: C901
+def _extract_verification_with_memory_for_outlook(
     *,
-    account: Dict[str, Any],
+    account: dict[str, Any],
     email_addr: str,
     from_contains: str,
     subject_contains: str,
-    since_minutes: Optional[int],
-    baseline_timestamp: Optional[int],
-    resolved_policy: Dict[str, Any],
+    since_minutes: int | None,
+    baseline_timestamp: int | None,
+    resolved_policy: dict[str, Any],
     code_source: str,
     expected_field: str | None = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     ensure_external_email_access(email_addr)
     result = verification_channel_service.extract_verification_for_outlook(
         account=account,
@@ -969,9 +971,9 @@ def _extract_verification_with_memory_for_outlook(  # noqa: C901
 
 def _resolve_verification_extract_context(
     email_addr: str,
-) -> Tuple[Optional[Dict[str, Any]], Optional[int], Optional[Dict[str, Any]]]:
+) -> tuple[dict[str, Any] | None, int | None, dict[str, Any] | None]:
     account = accounts_repo.get_account_by_email((email_addr or "").strip())
-    account_id: Optional[int] = None
+    account_id: int | None = None
     if account and account.get("id") is not None:
         try:
             account_id = int(account.get("id"))
@@ -993,9 +995,9 @@ def _resolve_verification_policy_for_request(
     *,
     code_length: str | None,
     code_regex: str | None,
-    group: Optional[Dict[str, Any]],
+    group: dict[str, Any] | None,
     apply_default_code_length: bool,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     try:
         return groups_repo.resolve_group_verification_policy(
             request_code_length=code_length,
@@ -1017,7 +1019,7 @@ def _ensure_verification_ai_ready() -> None:
 
 def _should_use_outlook_memory_extract(
     *,
-    account: Optional[Dict[str, Any]],
+    account: dict[str, Any] | None,
     folder: str,
     enable_channel_memory: bool,
 ) -> bool:
@@ -1030,13 +1032,13 @@ def _should_use_outlook_memory_extract(
 
 def _finalize_verification_extract_log(
     *,
-    account_id: Optional[int],
+    account_id: int | None,
     channel: str,
     started_at: float,
-    result: Optional[Dict[str, Any]],
+    result: dict[str, Any] | None,
     used_ai: bool,
-    error_code: Optional[str],
-    trace_id: Optional[str],
+    error_code: str | None,
+    trace_id: str | None,
 ) -> None:
     result_type, code_found = resolve_extract_log_outcome(result)
     _write_extract_log(
@@ -1054,15 +1056,15 @@ def _finalize_verification_extract_log(
 
 def _run_logged_verification_extract(
     *,
-    account_id: Optional[int],
+    account_id: int | None,
     started_at: float,
-    trace_id: Optional[str],
-    extract_fn: Callable[[], Tuple[Dict[str, Any], str, bool]],
-) -> Dict[str, Any]:
-    result: Optional[Dict[str, Any]] = None
+    trace_id: str | None,
+    extract_fn: Callable[[], tuple[dict[str, Any], str, bool]],
+) -> dict[str, Any]:
+    result: dict[str, Any] | None = None
     log_channel = "unknown"
     used_ai = False
-    error_code: Optional[str] = None
+    error_code: str | None = None
 
     try:
         result, log_channel, used_ai = extract_fn()
@@ -1084,16 +1086,16 @@ def _run_logged_verification_extract(
 
 def _run_outlook_memory_verification_extract(
     *,
-    account: Dict[str, Any],
+    account: dict[str, Any],
     email_addr: str,
     from_contains: str,
     subject_contains: str,
-    since_minutes: Optional[int],
-    baseline_timestamp: Optional[int],
-    resolved_policy: Dict[str, Any],
+    since_minutes: int | None,
+    baseline_timestamp: int | None,
+    resolved_policy: dict[str, Any],
     code_source: str,
     expected_field: str | None,
-) -> Tuple[Dict[str, Any], str, bool]:
+) -> tuple[dict[str, Any], str, bool]:
     result = _extract_verification_with_memory_for_outlook(
         account=account,
         email_addr=email_addr,
@@ -1114,12 +1116,12 @@ def _run_generic_verification_extract(
     folder: str,
     from_contains: str,
     subject_contains: str,
-    since_minutes: Optional[int],
-    baseline_timestamp: Optional[int],
-    resolved_policy: Dict[str, Any],
+    since_minutes: int | None,
+    baseline_timestamp: int | None,
+    resolved_policy: dict[str, Any],
     code_source: str,
     expected_field: str | None,
-) -> Tuple[Dict[str, Any], str, bool]:
+) -> tuple[dict[str, Any], str, bool]:
     latest_summary = get_latest_message_for_external(
         email_addr=email_addr,
         folder=folder,
@@ -1179,15 +1181,15 @@ def get_verification_result(
     folder: str = "inbox",
     from_contains: str = "",
     subject_contains: str = "",
-    since_minutes: Optional[int] = None,
+    since_minutes: int | None = None,
     code_regex: str | None = None,
     code_length: str | None = None,
     code_source: str = "all",
-    baseline_timestamp: Optional[int] = None,
+    baseline_timestamp: int | None = None,
     apply_default_code_length: bool = True,
     expected_field: str | None = None,
     enable_channel_memory: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     started_at = time.time()
     trace_id = None
     account, account_id, group = _resolve_verification_extract_context(email_addr)
@@ -1240,7 +1242,7 @@ def get_verification_result(
     )
 
 
-def wait_for_message(  # noqa: C901
+def wait_for_message(
     *,
     email_addr: str,
     timeout_seconds: int = 30,
@@ -1248,9 +1250,9 @@ def wait_for_message(  # noqa: C901
     folder: str = "inbox",
     from_contains: str = "",
     subject_contains: str = "",
-    since_minutes: Optional[int] = None,
-    baseline_timestamp: Optional[int] = None,
-) -> Dict[str, Any]:
+    since_minutes: int | None = None,
+    baseline_timestamp: int | None = None,
+) -> dict[str, Any]:
     try:
         timeout_seconds = int(timeout_seconds)
         poll_interval = int(poll_interval)
@@ -1269,7 +1271,7 @@ def wait_for_message(  # noqa: C901
     if baseline_timestamp is None or baseline_timestamp <= 0:
         baseline_timestamp = int(time.time())
     start = time.time()
-    last_error: Optional[ExternalApiError] = None
+    last_error: ExternalApiError | None = None
     while True:
         try:
             if _can_check_external_access():
@@ -1323,9 +1325,9 @@ def create_probe(
     folder: str = "inbox",
     from_contains: str = "",
     subject_contains: str = "",
-    since_minutes: Optional[int] = None,
-    baseline_timestamp: Optional[int] = None,
-) -> Dict[str, Any]:
+    since_minutes: int | None = None,
+    baseline_timestamp: int | None = None,
+) -> dict[str, Any]:
     """
     创建一个异步探测请求，后台 worker 会定期轮询直到匹配或超时。
     返回 probe_id 供后续查询。
@@ -1381,7 +1383,7 @@ def create_probe(
     }
 
 
-def get_probe_status(probe_id: str) -> Dict[str, Any]:
+def get_probe_status(probe_id: str) -> dict[str, Any]:
     """查询探测状态与结果。"""
     from outlook_web.db import get_db
 
@@ -1394,7 +1396,7 @@ def get_probe_status(probe_id: str) -> Dict[str, Any]:
     if not row:
         raise MailNotFoundError("探测请求不存在", data={"probe_id": probe_id})
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "probe_id": row["id"],
         "email": row["email_addr"],
         "status": row["status"],
@@ -1491,7 +1493,7 @@ def _get_probe_baseline_timestamp(row: Any) -> int:
         return int(time.time()) - int(row["timeout_seconds"] or 0)
 
 
-def _mark_probe_matched(db: Any, probe_id: str, latest: Dict[str, Any], now: str) -> None:
+def _mark_probe_matched(db: Any, probe_id: str, latest: dict[str, Any], now: str) -> None:
     db.execute(
         """
         UPDATE external_probe_cache
@@ -1588,7 +1590,7 @@ def cleanup_expired_probes(app: Any = None, max_age_minutes: int = 30) -> int:
             ctx.pop()
 
 
-def claimed_at_to_timestamp(claimed_at: str) -> Optional[int]:
+def claimed_at_to_timestamp(claimed_at: str) -> int | None:
     """将 claimed_at ISO string 转为 Unix timestamp（整数），解析失败返回 None。"""
     if not claimed_at:
         return None
@@ -1602,11 +1604,11 @@ def claimed_at_to_timestamp(claimed_at: str) -> Optional[int]:
 
 
 def resolve_external_mail_scope(
-    email_addr: Optional[str],
-    claim_token: Optional[str],
+    email_addr: str | None,
+    claim_token: str | None,
     *,
     allow_finished: bool = False,
-) -> tuple[str, Optional[int]]:
+) -> tuple[str, int | None]:
     """
     根据 email_addr 或 claim_token 确定目标邮箱地址和 baseline_timestamp。
 
@@ -1617,7 +1619,7 @@ def resolve_external_mail_scope(
     """
     from outlook_web.services.pool import get_claim_context
 
-    baseline: Optional[int] = None
+    baseline: int | None = None
 
     if claim_token and claim_token.strip():
         ctx = get_claim_context(claim_token=claim_token.strip())
@@ -1644,7 +1646,7 @@ def resolve_external_mail_scope(
 
 def record_claim_read_context(
     *,
-    claim_token: Optional[str],
+    claim_token: str | None,
     email_addr: str,
 ) -> None:
     """
@@ -1682,9 +1684,9 @@ def audit_external_api_access(
     email_addr: str,
     endpoint: str,
     status: str,
-    details: Dict[str, Any] | None = None,
+    details: dict[str, Any] | None = None,
 ):
-    safe_details: Dict[str, Any] = {"endpoint": endpoint, "status": status}
+    safe_details: dict[str, Any] = {"endpoint": endpoint, "status": status}
     consumer = get_current_external_api_consumer()
     if consumer:
         safe_details.update(

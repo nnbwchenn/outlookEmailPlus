@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from outlook_web.db import get_db
 
 
-def resolve_extract_log_outcome(result: Optional[Dict[str, Any]]) -> Tuple[str, Optional[str]]:
+def resolve_extract_log_outcome(result: dict[str, Any] | None) -> tuple[str, str | None]:
     # 优先级：code > link > none；result 可能是 None（异常路径），需防御
     payload = dict(result or {})
     code = str(payload.get("verification_code") or "").strip()
@@ -22,15 +22,15 @@ def resolve_extract_log_outcome(result: Optional[Dict[str, Any]]) -> Tuple[str, 
 
 def write_verification_extract_log(
     *,
-    account_id: Optional[int],
+    account_id: int | None,
     channel: str,
     started_at: float,
     finished_at: float,
     result_type: str,
-    code_found: Optional[str],
+    code_found: str | None,
     used_ai: bool,
-    error_code: Optional[str],
-    trace_id: Optional[str],
+    error_code: str | None,
+    trace_id: str | None,
     db: Any = None,
 ) -> None:
     try:
@@ -64,7 +64,7 @@ def write_verification_extract_log(
                 str(channel or "unknown"),
                 float(started_at or 0),
                 float(finished_at or 0),
-                max(int(round((float(finished_at or 0) - float(started_at or 0)) * 1000)), 0),
+                max(round((float(finished_at or 0) - float(started_at or 0)) * 1000), 0),
                 str(result_type or "none"),
                 code_found,
                 1 if used_ai else 0,

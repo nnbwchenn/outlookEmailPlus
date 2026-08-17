@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
 
 from outlook_web.db import create_sqlite_connection
 from outlook_web.repositories import pool_admin as pool_admin_repo
@@ -18,7 +17,7 @@ from outlook_web.repositories import pool_admin as pool_admin_repo
 logger = logging.getLogger(__name__)
 
 # 动作 → 允许的起始状态集合 → 目标状态
-ACTION_RULES: Dict[str, Dict[str, Optional[str]]] = {
+ACTION_RULES: dict[str, dict[str, str | None]] = {
     "move_into_pool": {
         "from_states": {None},
         "to_state": "available",
@@ -48,8 +47,8 @@ def apply_action(
     account_id: int,
     action: str,
     *,
-    operator: Optional[str] = None,
-) -> Dict[str, any]:
+    operator: str | None = None,
+) -> dict[str, any]:
     """对单个账号执行号池管理动作。
 
     返回统一结构：{"success": bool, "message": str, "error_code": str, "data": dict}
@@ -131,13 +130,13 @@ def apply_action(
 def list_accounts(
     *,
     in_pool: str = "all",
-    pool_status: Optional[str] = None,
-    provider: Optional[str] = None,
-    group_id: Optional[int] = None,
-    search: Optional[str] = None,
+    pool_status: str | None = None,
+    provider: str | None = None,
+    group_id: int | None = None,
+    search: str | None = None,
     page: int = 1,
     page_size: int = 50,
-) -> Dict[str, any]:
+) -> dict[str, any]:
     """号池管理列表查询（Service 层透传）。"""
     conn = create_sqlite_connection()
     try:

@@ -3,7 +3,6 @@ from __future__ import annotations
 import secrets
 import time
 from functools import wraps
-from typing import Optional
 
 from flask import g, jsonify, redirect, request, session, url_for
 
@@ -19,7 +18,7 @@ ATTEMPT_WINDOW = 600  # 失败计数窗口（秒）- 10分钟
 EXPORT_VERIFY_TOKEN_TTL_SECONDS = 300  # 5 分钟有效期
 
 
-def check_rate_limit(ip: str) -> tuple[bool, Optional[int]]:
+def check_rate_limit(ip: str) -> tuple[bool, int | None]:
     """
     检查 IP 是否被速率限制
     返回: (是否允许登录, 剩余锁定秒数)

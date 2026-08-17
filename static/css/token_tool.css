@@ -29,6 +29,227 @@
     color: var(--text-muted);
 }
 
+/* ===== 授权方式 Tab ===== */
+.auth-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.auth-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: left;
+    transition: all var(--transition);
+    cursor: pointer;
+}
+
+.auth-tab small {
+    font-size: 0.74rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.auth-tab:hover {
+    border-color: var(--clr-primary);
+    color: var(--clr-primary);
+}
+
+.auth-tab.active {
+    background: rgba(184, 92, 56, 0.1);
+    border-color: var(--clr-primary);
+    color: var(--clr-primary);
+}
+
+.auth-tab.active small {
+    color: var(--text-secondary);
+}
+
+.auth-pane {
+    padding: 4px 0;
+}
+
+.auth-pane-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-light);
+}
+
+.btn-lg {
+    padding: 10px 22px;
+    font-size: 0.92rem;
+}
+
+@media (max-width: 560px) {
+    .auth-tabs {
+        grid-template-columns: 1fr;
+    }
+}
+
+[data-theme="dark"] .auth-tab.active {
+    background: rgba(184, 92, 56, 0.16);
+}
+
+/* ===== 流程步骤条 ===== */
+.token-steps {
+    display: flex;
+    gap: 8px;
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+    flex-wrap: wrap;
+}
+
+.token-steps .step {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all var(--transition);
+    cursor: default;
+}
+
+.token-steps .step-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.token-steps .step.active {
+    background: rgba(184, 92, 56, 0.12);
+    border-color: var(--clr-primary);
+    color: var(--clr-primary);
+}
+
+.token-steps .step.active .step-dot {
+    background: var(--clr-primary);
+    color: #fff;
+}
+
+/* ===== Scope 只读展示 ===== */
+.scope-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.scope-summary code {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(58, 125, 68, 0.1);
+    border: 1px solid rgba(58, 125, 68, 0.3);
+    color: var(--clr-jade);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    word-break: break-all;
+}
+
+/* ===== 高级折叠 ===== */
+.scope-advanced {
+    margin-top: 8px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+}
+
+.scope-advanced summary {
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    user-select: none;
+}
+
+.scope-advanced summary:hover {
+    color: var(--clr-primary);
+}
+
+.scope-advanced .scope-editor {
+    margin-top: 10px;
+}
+
+[data-theme="dark"] .token-steps .step.active {
+    background: rgba(184, 92, 56, 0.18);
+}
+
+/* ===== 授权方式卡片 ===== */
+.token-auth-methods {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}
+
+.auth-method {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+}
+
+.auth-method-primary {
+    border-color: rgba(184, 92, 56, 0.4);
+    background: rgba(184, 92, 56, 0.05);
+}
+
+.auth-method-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.auth-method-head strong {
+    font-size: 0.86rem;
+    color: var(--text);
+}
+
+.auth-method-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.auth-method-actions button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+[data-theme="dark"] .auth-method-primary {
+    background: rgba(184, 92, 56, 0.12);
+}
+
 .token-card {
     background: var(--bg-card);
     border: 1px solid var(--border);

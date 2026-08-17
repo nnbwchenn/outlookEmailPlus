@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from outlook_web.services import channel_capability_cache
 from outlook_web.services import graph as graph_service
@@ -29,7 +29,7 @@ VERIFICATION_FETCH_TOP = 3
 IMAP_VERIFICATION_FOLDERS = ("inbox", "junkemail")
 
 
-def _parse_message_datetime(value: Any) -> Optional[datetime]:
+def _parse_message_datetime(value: Any) -> datetime | None:
     if value is None:
         return None
 
@@ -62,7 +62,7 @@ def _parse_message_datetime(value: Any) -> Optional[datetime]:
     return dt.astimezone(timezone.utc)
 
 
-def _message_received_timestamp(message: Dict[str, Any]) -> int:
+def _message_received_timestamp(message: dict[str, Any]) -> int:
     for key in ("timestamp", "receivedDateTime", "date", "created_at", "received_at"):
         dt = _parse_message_datetime(message.get(key))
         if dt:
@@ -70,7 +70,7 @@ def _message_received_timestamp(message: Dict[str, Any]) -> int:
     return 0
 
 
-def _enrich_verification_message(item: Dict[str, Any], *, folder: str, channel: str) -> Dict[str, Any]:
+def _enrich_verification_message(item: dict[str, Any], *, folder: str, channel: str) -> dict[str, Any]:
     enriched = dict(item)
     enriched["folder"] = folder
     enriched["_verification_channel"] = channel
@@ -87,12 +87,12 @@ def _enrich_verification_message(item: Dict[str, Any], *, folder: str, channel: 
     return enriched
 
 
-def _message_sort_key(message: Dict[str, Any]) -> tuple:
+def _message_sort_key(message: dict[str, Any]) -> tuple:
     timestamp = int(message.get("_received_timestamp") or 0) or _message_received_timestamp(message)
     return (timestamp, str(message.get("id") or ""))
 
 
-def _candidate_folders_for_channel(channel: str) -> List[str]:
+def _candidate_folders_for_channel(channel: str) -> list[str]:
     normalized = normalize_verification_channel(channel)
     if normalized == CHANNEL_GRAPH_INBOX:
         return ["inbox"]
@@ -112,14 +112,14 @@ def _channel_group(channel: str) -> str:
     return ""
 
 
-def _verification_channel_phases(channel_plan: List[str]) -> List[List[str]]:
-    groups: List[str] = []
+def _verification_channel_phases(channel_plan: list[str]) -> list[list[str]]:
+    groups: list[str] = []
     for channel in channel_plan:
         group = _channel_group(channel)
         if group and group not in groups:
             groups.append(group)
 
-    phases: List[List[str]] = []
+    phases: list[list[str]] = []
     for group in groups:
         phase = [channel for channel in channel_plan if _channel_group(channel) == group]
         if phase:
@@ -127,21 +127,21 @@ def _verification_channel_phases(channel_plan: List[str]) -> List[List[str]]:
     return phases
 
 
-def normalize_verification_channel(value: Any) -> Optional[str]:
+def normalize_verification_channel(value: Any) -> str | None:
     text = str(value or "").strip().lower()
     if text in VALID_VERIFICATION_CHANNELS:
         return text
     return None
 
 
-def build_verification_channel_plan(preferred_channel: Any) -> List[str]:
+def build_verification_channel_plan(preferred_channel: Any) -> list[str]:
     preferred = normalize_verification_channel(preferred_channel)
     if not preferred:
         return list(DEFAULT_VERIFICATION_CHANNEL_CHAIN)
     return [preferred] + [channel for channel in DEFAULT_VERIFICATION_CHANNEL_CHAIN if channel != preferred]
 
 
-def map_method_to_verification_channel(method: str, *, folder: str = "inbox") -> Optional[str]:
+def map_method_to_verification_channel(method: str, *, folder: str = "inbox") -> str | None:
     method_text = str(method or "").strip().lower()
     folder_text = str(folder or "inbox").strip().lower()
     if method_text == "graph api":
@@ -166,7 +166,7 @@ def channel_method_label(channel: str) -> str:
     return ""
 
 
-def is_outlook_oauth_account(account: Dict[str, Any]) -> bool:
+def is_outlook_oauth_account(account: dict[str, Any]) -> bool:
     account_type = str(account.get("account_type") or "outlook").strip().lower()
     if account_type != "outlook":
         return False
@@ -175,13 +175,13 @@ def is_outlook_oauth_account(account: Dict[str, Any]) -> bool:
 
 def fetch_emails_for_channel(
     *,
-    account: Dict[str, Any],
+    account: dict[str, Any],
     channel: str,
     proxy_url: str = "",
     folder: str = "",
     skip: int = 0,
     top: int = 20,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     normalized = normalize_verification_channel(channel)
     if not normalized:
         return {
@@ -246,12 +246,12 @@ def fetch_emails_for_channel(
 
 def fetch_email_detail_for_channel(
     *,
-    account: Dict[str, Any],
+    account: dict[str, Any],
     channel: str,
     message_id: str,
     proxy_url: str = "",
     folder: str = "",
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     normalized = normalize_verification_channel(channel)
     if not normalized or not message_id:
         return None
@@ -287,13 +287,13 @@ def fetch_email_detail_for_channel(
 
 def fetch_emails_and_detail_for_channel(
     *,
-    account: Dict[str, Any],
+    account: dict[str, Any],
     channel: str,
     proxy_url: str = "",
     folder: str = "",
     skip: int = 0,
     top: int = 20,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """IMAP 渠道返回 emails+detail（连接复用），Graph 只返回 emails。"""
     normalized = normalize_verification_channel(channel)
     if not normalized:
@@ -391,14 +391,14 @@ def _get_channel_display_name(channel: str) -> str:
     }.get(channel, channel)
 
 
-def _is_extraction_success(extracted: Dict[str, Any], expected_field: Any) -> bool:
+def _is_extraction_success(extracted: dict[str, Any], expected_field: Any) -> bool:
     if expected_field:
         return bool(extracted.get(expected_field))
     return bool(extracted.get("verification_code") or extracted.get("verification_link"))
 
 
 def _should_try_older_email_after_failed_extraction(
-    extracted: Dict[str, Any],
+    extracted: dict[str, Any],
     expected_field: Any,
 ) -> bool:
     """当指定 expected_field 时，仅允许在较新邮件为「仅链接/仅验证码」时继续尝试更早邮件。"""
@@ -416,7 +416,7 @@ def _should_try_older_email_after_failed_extraction(
     return False
 
 
-def _build_email_obj_from_channel_detail(*, detail: Dict[str, Any], latest: Dict[str, Any]) -> Dict[str, Any]:
+def _build_email_obj_from_channel_detail(*, detail: dict[str, Any], latest: dict[str, Any]) -> dict[str, Any]:
     # Graph 详情
     if "body" in detail and isinstance(detail.get("body"), dict):
         body_content = detail.get("body") or {}
@@ -450,16 +450,16 @@ def _build_email_obj_from_channel_detail(*, detail: Dict[str, Any], latest: Dict
 
 def extract_verification_for_outlook(
     *,
-    account: Dict[str, Any],
+    account: dict[str, Any],
     proxy_url: str = "",
-    resolved_policy: Dict[str, Any],
+    resolved_policy: dict[str, Any],
     code_source: str = "all",
     expected_field: Any = None,
     from_contains: str = "",
     subject_contains: str = "",
     since_minutes: Any = None,
     baseline_timestamp: Any = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Outlook OAuth 账号验证码提取统一入口（Web 端和 External API 均调用此函数）。"""
     account_email = str(account.get("email") or "")
     preferred = normalize_verification_channel(account.get("preferred_verification_channel"))
@@ -486,17 +486,17 @@ def extract_verification_for_outlook(
 
     any_channel_read_success = False
     graph_auth_expired = False
-    upstream_errors: Dict[str, Any] = {}
+    upstream_errors: dict[str, Any] = {}
     last_extracted = None
     precheck_obj = locals().get("precheck")
     new_refresh_token = str((precheck_obj or {}).get("new_refresh_token") or "")
     verification_attempted = False
     last_log_channel = "unknown"
-    emails: List[Dict[str, Any]] = []
-    detail_cache: Dict[tuple, Dict[str, Any]] = {}
+    emails: list[dict[str, Any]] = []
+    detail_cache: dict[tuple, dict[str, Any]] = {}
 
     for channel_phase in _verification_channel_phases(channel_plan):
-        candidate_emails: List[Dict[str, Any]] = []
+        candidate_emails: list[dict[str, Any]] = []
         for channel in channel_phase:
             last_log_channel = channel or last_log_channel
             channel_available = False

@@ -711,7 +711,7 @@ def api_update_settings() -> Any:
             except ImportError:
                 errors.append("croniter 库未安装")
             except Exception as e:
-                errors.append(f"Cron 表达式无效: {str(e)}")
+                errors.append(f"Cron 表达式无效: {e!s}")
 
     # 更新刷新策略
     if "use_cron_schedule" in data:

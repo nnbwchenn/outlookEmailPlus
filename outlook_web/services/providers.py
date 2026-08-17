@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 对齐：PRD-00005 / FD-00005 / TDD-00005 / PRD-00006 / FD-00006
 # 职责：集中维护“邮箱提供商”元数据与 IMAP 文件夹映射，避免前后端重复维护默认 host/port 与 folder 兼容策略。
 
 # 邮箱提供商配置（用于前端选择与默认 IMAP host/port）
-MAIL_PROVIDERS: Dict[str, Dict[str, Any]] = {
+MAIL_PROVIDERS: dict[str, dict[str, Any]] = {
     "outlook": {
         "label": "Outlook",
         "imap_host": "outlook.live.com",
@@ -66,7 +66,7 @@ MAIL_PROVIDERS: Dict[str, Dict[str, Any]] = {
 }
 
 # FD-00006: 域名 → provider 反向映射（用于 auto 模式域名推断）
-DOMAIN_PROVIDER_MAP: Dict[str, str] = {
+DOMAIN_PROVIDER_MAP: dict[str, str] = {
     # Gmail
     "gmail.com": "gmail",
     "googlemail.com": "gmail",
@@ -92,7 +92,7 @@ DOMAIN_PROVIDER_MAP: Dict[str, str] = {
 }
 
 # FD-00006: provider → 自动分组名映射
-PROVIDER_GROUP_NAME: Dict[str, str] = {
+PROVIDER_GROUP_NAME: dict[str, str] = {
     "outlook": "Outlook",
     "gmail": "Gmail",
     "qq": "QQ邮箱",
@@ -107,7 +107,7 @@ PROVIDER_GROUP_NAME: Dict[str, str] = {
 KNOWN_PROVIDER_KEYS: set = set(MAIL_PROVIDERS.keys())
 
 
-def infer_provider_from_email(email: str) -> Optional[str]:
+def infer_provider_from_email(email: str) -> str | None:
     """从邮箱地址推断 provider。返回 provider key 或 None。"""
     if not email or "@" not in email:
         return None
@@ -116,7 +116,7 @@ def infer_provider_from_email(email: str) -> Optional[str]:
 
 
 # provider -> 逻辑文件夹名（inbox/junkemail/deleteditems）-> 候选 IMAP 文件夹名列表
-PROVIDER_FOLDER_MAP: Dict[str, Dict[str, List[str]]] = {
+PROVIDER_FOLDER_MAP: dict[str, dict[str, list[str]]] = {
     "gmail": {
         "inbox": ["INBOX"],
         "junkemail": ["[Gmail]/Spam", "[Gmail]/垃圾邮件"],
@@ -145,7 +145,7 @@ PROVIDER_FOLDER_MAP: Dict[str, Dict[str, List[str]]] = {
 }
 
 
-def get_imap_folder_candidates(provider: str, folder: str) -> List[str]:
+def get_imap_folder_candidates(provider: str, folder: str) -> list[str]:
     """
     根据 provider 和逻辑文件夹名（inbox/junkemail/deleteditems），
     返回候选 IMAP 文件夹名列表（按优先级排序）。
@@ -160,7 +160,7 @@ def get_imap_folder_candidates(provider: str, folder: str) -> List[str]:
 
 # FD-00009 / PR#27：provider 家族域名（用于 email_domain 级别邮箱过滤）
 # 每个 provider 下列出所有常见公共域名；企业 onmicrosoft.com 通过前缀匹配额外处理。
-PROVIDER_FAMILY_DOMAINS: Dict[str, List[str]] = {
+PROVIDER_FAMILY_DOMAINS: dict[str, list[str]] = {
     "outlook": ["outlook.com", "hotmail.com", "live.com", "live.cn"],
     "gmail": ["gmail.com", "googlemail.com"],
     "qq": ["qq.com", "foxmail.com"],
@@ -199,19 +199,17 @@ def provider_supports_email_domain(provider: str, email_domain: str) -> bool:
     if domain in known:
         return True
     # 企业 Outlook 账号兜底
-    if provider == "outlook" and domain.endswith(".onmicrosoft.com"):
-        return True
-    return False
+    return bool(provider == "outlook" and domain.endswith(".onmicrosoft.com"))
 
 
-def get_provider_domains(provider: str) -> List[str]:
+def get_provider_domains(provider: str) -> list[str]:
     """返回指定 provider 的已知公共域名列表（不含企业域名）。"""
     return list(PROVIDER_FAMILY_DOMAINS.get((provider or "").strip().lower(), []))
 
 
-def get_provider_list() -> List[Dict[str, Any]]:
+def get_provider_list() -> list[dict[str, Any]]:
     """返回供前端展示的 provider 列表（auto 在最前，outlook 其次，custom 在后）"""
-    result: List[Dict[str, Any]] = [
+    result: list[dict[str, Any]] = [
         {
             "key": "auto",
             "label": "🔍 智能识别（混合导入）",

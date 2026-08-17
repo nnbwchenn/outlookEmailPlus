@@ -6,7 +6,7 @@ import logging
 import re
 import socket
 from email.header import decode_header
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from outlook_web.errors import build_error_payload, sanitize_error_details
 from outlook_web.services.providers import get_imap_folder_candidates
@@ -47,7 +47,7 @@ def _strip_html(html_text: str) -> str:
         return html_text
 
 
-def _extract_text_and_html(msg: email.message.Message) -> Tuple[str, str]:
+def _extract_text_and_html(msg: email.message.Message) -> tuple[str, str]:
     """提取 text/plain 与 text/html（不含附件 part）。"""
     text_part = ""
     html_part = ""
@@ -122,7 +122,7 @@ def _extract_flags_from_fetch(fetch_item: Any) -> str:
         return ""
 
 
-def _quote_if_needed(folder_name: str) -> List[str]:
+def _quote_if_needed(folder_name: str) -> list[str]:
     name = (folder_name or "").strip()
     if not name:
         return []
@@ -152,8 +152,8 @@ def _normalize_imap_auth_error_message(raw_message: str, *, provider: str, imap_
 
 def _resolve_imap_folder(
     mail: imaplib.IMAP4_SSL,
-    candidates: List[str],
-) -> Optional[str]:
+    candidates: list[str],
+) -> str | None:
     """按优先级 SELECT 文件夹，返回第一个成功的文件夹名。"""
     for folder_name in candidates or []:
         for try_name in _quote_if_needed(folder_name):
@@ -213,7 +213,7 @@ def get_emails_imap_generic(
     provider: str = "_default",
     skip: int = 0,
     top: int = 20,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     标准 IMAP 邮件列表（LOGIN 认证）。
 
@@ -310,7 +310,7 @@ def get_emails_imap_generic(
 
         paged_uids = uids[start_idx:end_idx][::-1]
 
-        emails_data: List[Dict[str, Any]] = []
+        emails_data: list[dict[str, Any]] = []
         for uid in paged_uids:
             try:
                 f_status, f_data = mail.uid("FETCH", uid, "(FLAGS RFC822)")
@@ -400,7 +400,7 @@ def get_email_detail_imap_generic_result(
     message_id: str = "",
     folder: str = "inbox",
     provider: str = "_default",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """标准 IMAP 邮件详情（按 UID fetch），失败返回结构化错误。"""
     if not message_id:
         return {
@@ -501,7 +501,7 @@ def get_email_detail_imap_generic_result(
         except Exception:
             raw_content = ""
 
-        detail: Dict[str, Any] = {
+        detail: dict[str, Any] = {
             "id": message_id,
             "subject": decode_header_value(msg.get("Subject", "无主题")),
             "from": decode_header_value(msg.get("From", "未知发件人")),
@@ -551,7 +551,7 @@ def get_email_detail_imap_generic(
     message_id: str = "",
     folder: str = "inbox",
     provider: str = "_default",
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """兼容旧调用：成功返回详情，失败返回 None。"""
     result = get_email_detail_imap_generic_result(
         email_addr=email_addr,

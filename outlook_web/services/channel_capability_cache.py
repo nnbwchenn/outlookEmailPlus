@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _DEFAULT_TTL = 3600
-_cache: Dict[str, Dict[str, Dict[str, Any]]] = {}
+_cache: dict[str, dict[str, dict[str, Any]]] = {}
 _lock = threading.Lock()
 
 
@@ -21,7 +21,7 @@ def set_status(email: str, channel: str, *, available: bool) -> None:
         }
 
 
-def get_status(email: str, channel: str) -> Optional[str]:
+def get_status(email: str, channel: str) -> str | None:
     with _lock:
         account_cache = _cache.get(email)
         if not account_cache:
@@ -35,15 +35,15 @@ def get_status(email: str, channel: str) -> Optional[str]:
         return entry["status"]
 
 
-def filter_channel_plan(email: str, channel_plan: List[str]) -> List[str]:
+def filter_channel_plan(email: str, channel_plan: list[str]) -> list[str]:
     with _lock:
         account_cache = _cache.get(email)
         if not account_cache:
             return list(channel_plan)
 
         now = time.monotonic()
-        status_snapshot: Dict[str, str] = {}
-        expired_channels: List[str] = []
+        status_snapshot: dict[str, str] = {}
+        expired_channels: list[str] = []
         for ch, entry in account_cache.items():
             if now >= entry["expires_at"]:
                 expired_channels.append(ch)

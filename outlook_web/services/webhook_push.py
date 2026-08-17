@@ -63,8 +63,7 @@ def _normalize_received_time(value: Any) -> str:
     raw = str(value or "").strip()
     if not raw:
         return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    if raw.endswith("Z"):
-        raw = raw[:-1]
+    raw = raw.removesuffix("Z")
     return raw.split(".")[0]
 
 

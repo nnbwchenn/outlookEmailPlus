@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Dict, List, Optional
 
 from outlook_web.db import get_db
 
 
-def get_tags() -> List[Dict]:
+def get_tags() -> list[dict]:
     """获取所有标签"""
     db = get_db()
     cursor = db.execute("SELECT * FROM tags ORDER BY created_at DESC")
     return [dict(row) for row in cursor.fetchall()]
 
 
-def add_tag(name: str, color: str) -> Optional[int]:
+def add_tag(name: str, color: str) -> int | None:
     """添加标签"""
     db = get_db()
     try:
@@ -32,7 +31,7 @@ def delete_tag(tag_id: int) -> bool:
     return cursor.rowcount > 0
 
 
-def get_account_tags(account_id: int) -> List[Dict]:
+def get_account_tags(account_id: int) -> list[dict]:
     """获取账号的标签"""
     db = get_db()
     cursor = db.execute(

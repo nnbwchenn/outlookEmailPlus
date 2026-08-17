@@ -10,11 +10,14 @@ Trace ID 中间件
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
 
 from flask import g, request
 
-from outlook_web.errors import build_error_payload, generate_trace_id, resolve_message_en
+from outlook_web.errors import (
+    build_error_payload,
+    generate_trace_id,
+    resolve_message_en,
+)
 
 
 def ensure_trace_id():
@@ -60,7 +63,7 @@ def attach_trace_id_and_normalize_errors(response):
                 error_obj["trace_id"] = trace_id_value
                 mutated = True
             if not error_obj.get("status"):
-                error_obj["status"] = response.status_code if response.status_code >= 400 else 400
+                error_obj["status"] = max(response.status_code, 400)
                 mutated = True
             if not error_obj.get("code"):
                 error_obj["code"] = "UNKNOWN_ERROR"
@@ -92,7 +95,7 @@ def attach_trace_id_and_normalize_errors(response):
         # legacy：error 为字符串
         if isinstance(data.get("error"), str):
             legacy_message = data.get("error") or "请求失败"
-            status_for_payload = response.status_code if response.status_code >= 400 else 400
+            status_for_payload = max(response.status_code, 400)
             error_payload = build_error_payload(
                 code="LEGACY_ERROR",
                 message=legacy_message,

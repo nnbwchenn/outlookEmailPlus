@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from flask import Blueprint
 
 from outlook_web.controllers import pages as pages_controller
 
 
-def create_blueprint(csrf_exempt: Optional[Callable] = None) -> Blueprint:
+def create_blueprint(csrf_exempt: Callable | None = None) -> Blueprint:
     """创建 pages Blueprint"""
     bp = Blueprint("pages", __name__)
 

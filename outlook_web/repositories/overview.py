@@ -3,8 +3,9 @@ from __future__ import annotations
 import math
 import sqlite3
 import time
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 from outlook_web.db import get_db
 
@@ -13,7 +14,7 @@ def _db(conn: sqlite3.Connection | None = None) -> sqlite3.Connection:
     return conn or get_db()
 
 
-def _safe_div(numerator: int | float, denominator: int | float) -> float:
+def _safe_div(numerator: float, denominator: float) -> float:
     if not denominator:
         return 0.0
     return float(numerator) / float(denominator)
@@ -52,7 +53,7 @@ def _action_group(action: str) -> str:
     return "other"
 
 
-def get_overview_summary(conn: sqlite3.Connection | None = None) -> Dict[str, Any]:
+def get_overview_summary(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     # 概览大盘入口：聚合账号状态、邮箱池快照、刷新健康度、今日 KPI，供前端 dashboard 一次性加载
     db = _db(conn)
 
@@ -169,7 +170,7 @@ def get_verification_stats(
     *,
     days: int = 7,
     recent_limit: int = 10,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     # 验证码提取统计：汇总成功率、渠道分布、AI 增强效果、P95 延迟，支持运营洞察
     db = _db(conn)
     cutoff = time.time() - max(int(days), 1) * 86400
@@ -192,7 +193,7 @@ def get_verification_stats(
     ai_success = sum(1 for row in ai_rows if str(row["result_type"] or "") != "none")
     durations = [int(row["duration_ms"] or 0) for row in rows]
 
-    channel_stats_map: Dict[str, Dict[str, Any]] = {}
+    channel_stats_map: dict[str, dict[str, Any]] = {}
     for row in rows:
         channel = str(row["channel"] or "") or "unknown"
         entry = channel_stats_map.setdefault(
@@ -272,7 +273,7 @@ def get_verification_stats(
     }
 
 
-def get_external_api_stats(conn: sqlite3.Connection | None = None, *, days: int = 7) -> Dict[str, Any]:
+def get_external_api_stats(conn: sqlite3.Connection | None = None, *, days: int = 7) -> dict[str, Any]:
     # 外部 API 消费者统计：按调用方维度聚合调用量、成功率、端点分布，用于 API 用量监控
     db = _db(conn)
     days = max(int(days), 1)
@@ -314,8 +315,8 @@ def get_external_api_stats(conn: sqlite3.Connection | None = None, *, days: int 
             )
 
     daily_map = {day: 0 for day in day_list}
-    endpoint_map: Dict[str, int] = {}
-    caller_map: Dict[str, Dict[str, Any]] = {}
+    endpoint_map: dict[str, int] = {}
+    caller_map: dict[str, dict[str, Any]] = {}
     week_calls = 0
     week_success = 0
     week_errors = 0
@@ -397,7 +398,7 @@ def get_external_api_stats(conn: sqlite3.Connection | None = None, *, days: int 
     }
 
 
-def get_pool_stats(conn: sqlite3.Connection | None = None, *, days: int = 7) -> Dict[str, Any]:
+def get_pool_stats(conn: sqlite3.Connection | None = None, *, days: int = 7) -> dict[str, Any]:
     # 邮箱池统计：汇总可用/占用/冷却分布、操作统计、项目 Top5 使用率，帮助运营判断资源充足度
     db = _db(conn)
     cutoff_dt = (datetime.now(timezone.utc) - timedelta(days=max(int(days), 1))).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -535,7 +536,7 @@ def get_activity_stats(
     *,
     hours: int = 24,
     timeline_limit: int = 20,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     # 活动时间线：合并审计日志 + 通知推送 + 验证码提取三种事件源，按时间倒序统一展示
     db = _db(conn)
     hours = max(int(hours), 1)
@@ -568,12 +569,12 @@ def get_activity_stats(
         (verification_cutoff,),
     ).fetchall()
 
-    op_type_map: Dict[str, int] = {}
+    op_type_map: dict[str, int] = {}
     for row in audit_rows:
         key = _action_group(str(row["action"] or ""))
         op_type_map[key] = op_type_map.get(key, 0) + 1
 
-    notification_stats: Dict[str, Dict[str, Any]] = {}
+    notification_stats: dict[str, dict[str, Any]] = {}
     for row in notification_rows:
         channel = str(row["channel"] or "").strip() or "unknown"
         item = notification_stats.setdefault(channel, {"count": 0, "success_count": 0, "success_rate": 0.0})
@@ -583,7 +584,7 @@ def get_activity_stats(
     for item in notification_stats.values():
         item["success_rate"] = _safe_div(item["success_count"], item["count"])
 
-    timeline: List[Dict[str, Any]] = []
+    timeline: list[dict[str, Any]] = []
     for row in audit_rows:
         timeline.append(
             {

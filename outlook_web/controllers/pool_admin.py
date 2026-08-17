@@ -77,10 +77,6 @@ def api_account_action(account_id: int) -> Any:
     status_code = 400
     if error_code == "ACCOUNT_NOT_FOUND":
         status_code = 404
-    elif error_code == "CLAIMED_PROTECTED":
-        status_code = 409
-    elif error_code == "INVALID_STATE_TRANSITION":
-        status_code = 409
-    elif error_code == "NOT_CLAIMED":
+    elif error_code == "CLAIMED_PROTECTED" or error_code == "INVALID_STATE_TRANSITION" or error_code == "NOT_CLAIMED":
         status_code = 409
     return jsonify(result), status_code

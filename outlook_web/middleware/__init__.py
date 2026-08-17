@@ -9,8 +9,8 @@ from outlook_web.middleware.trace import (
 )
 
 __all__ = [
-    "ensure_trace_id",
     "attach_trace_id_and_normalize_errors",
-    "handle_http_exception",
+    "ensure_trace_id",
     "handle_exception",
+    "handle_http_exception",
 ]

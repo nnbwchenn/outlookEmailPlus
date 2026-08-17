@@ -20,11 +20,12 @@
         <p>{{ error_description }}</p>
         <p class="guidance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>{{ guidance }}</p>
         <button class="btn btn-secondary" onclick="window.close()">关闭</button>
+        <p class="guidance" style="font-size:12px;">若此窗口由 Token 工具弹窗打开，失败信息已自动回传，可直接关闭。</p>
     </div>
     {% else %}
     <div class="card">
         <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><polyline points="20 6 9 17 4 12"/></svg>授权成功</h2>
-        <p>请复制当前地址栏的完整 URL，粘贴到 Token 工具页面的「手动换取」区域</p>
+        <p>正在自动回传到 Token 工具…（若弹窗未自动关闭，可手动复制下方地址）</p>
         <button class="btn btn-primary" onclick="copyCurrentUrl()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>复制回调地址</button>
         <button class="btn btn-secondary" onclick="window.close()">关闭</button>
         <p id="copy-tip" style="display:none; color:green; margin-top:8px;">✓ 已复制</p>
@@ -37,6 +38,45 @@
             document.getElementById('copy-tip').style.display = 'block';
         });
     }
+
+    // 方式一：一键授权 —— 把结果通过 postMessage 回传给 opener（Token 工具页面），
+    // 并自动关闭弹窗。origin 限定为 opener 的 origin，避免把长时效凭证泄漏给任意窗口。
+    (function () {
+        var opener = window.opener;
+        if (!opener) return;
+
+        var safeOrigin = null;
+        try {
+            safeOrigin = new URL(document.referrer).origin;
+        } catch (e) {
+            safeOrigin = window.location.origin;
+        }
+
+        var payload = null;
+        {% if error %}
+        payload = {
+            type: 'oauth-callback',
+            success: false,
+            error_code: {{ error_code | tojson }},
+            error_description: {{ error_description | tojson }}
+        };
+        {% else %}
+        payload = {
+            type: 'oauth-callback',
+            success: true,
+            callback_url: window.location.href
+        };
+        {% endif %}
+
+        try {
+            opener.postMessage(payload, safeOrigin || window.location.origin);
+        } catch (e) {
+            // postMessage 失败时保留手动复制路径
+        }
+        setTimeout(function () {
+            if (window.opener) window.close();
+        }, 1200);
+    })();
     </script>
 </body>
 </html>

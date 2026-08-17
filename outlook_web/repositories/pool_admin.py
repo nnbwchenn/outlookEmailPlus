@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def list_accounts(
     conn: sqlite3.Connection,
     *,
     in_pool: str = "all",
-    pool_status: Optional[str] = None,
-    provider: Optional[str] = None,
-    group_id: Optional[int] = None,
-    search: Optional[str] = None,
+    pool_status: str | None = None,
+    provider: str | None = None,
+    group_id: int | None = None,
+    search: str | None = None,
     page: int = 1,
     page_size: int = 50,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """号池管理专用查询：返回账号列表与分页信息。
 
     参数:
@@ -26,8 +26,8 @@ def list_accounts(
         page: 页码（从 1 开始）
         page_size: 每页条数
     """
-    where_clauses: List[str] = []
-    params: List[Any] = []
+    where_clauses: list[str] = []
+    params: list[Any] = []
 
     normalized_in_pool = str(in_pool or "all").strip().lower()
     if normalized_in_pool == "true":
@@ -108,7 +108,7 @@ def list_accounts(
         [*params, normalized_page_size, offset],
     ).fetchall()
 
-    items: List[Dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
         # 确保前端拿到的是 None 而不是空字符串（保持语义一致）
@@ -126,7 +126,7 @@ def list_accounts(
     }
 
 
-def get_account_pool_status(conn: sqlite3.Connection, account_id: int) -> Optional[str]:
+def get_account_pool_status(conn: sqlite3.Connection, account_id: int) -> str | None:
     """返回账号当前 pool_status（None 表示池外）。"""
     row = conn.execute(
         "SELECT pool_status FROM accounts WHERE id = ?",
@@ -141,7 +141,7 @@ def update_pool_status(
     conn: sqlite3.Connection,
     *,
     account_id: int,
-    new_pool_status: Optional[str],
+    new_pool_status: str | None,
 ) -> None:
     """更新账号 pool_status，同时更新 updated_at。
 

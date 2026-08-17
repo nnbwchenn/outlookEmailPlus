@@ -19,4 +19,4 @@ if callable(_old_path_glob):
 
 from outlook_web.app import create_app
 
-__all__ = ["create_app", "__version__"]
+__all__ = ["__version__", "create_app"]

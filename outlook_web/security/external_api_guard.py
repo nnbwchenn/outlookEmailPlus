@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import ipaddress
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any
 
 from flask import jsonify
 
@@ -61,7 +62,7 @@ def _ip_in_whitelist(ip: str, whitelist: list) -> bool:
     return False
 
 
-def check_ip_whitelist() -> Optional[Any]:
+def check_ip_whitelist() -> Any | None:
     """
     检查 IP 白名单。仅在公网模式开启且白名单非空时生效。
     返回 None 表示通过，返回 Response 表示拒绝。
@@ -89,7 +90,7 @@ def check_ip_whitelist() -> Optional[Any]:
 # ── 高风险接口禁用 ────────────────────────────────────
 
 
-def check_feature_enabled(feature: str) -> Optional[Any]:
+def check_feature_enabled(feature: str) -> Any | None:
     """
     检查功能是否被禁用。仅在公网模式开启时生效。
     feature: 'wait_message' | 'raw_content' | 'pool_claim_random' | 'pool_claim_release' | 'pool_claim_complete' | 'pool_stats'
@@ -143,7 +144,7 @@ def _cleanup_old_buckets(db: Any) -> None:
         pass
 
 
-def check_rate_limit() -> Optional[Any]:
+def check_rate_limit() -> Any | None:
     """
     检查限流。仅在公网模式开启时生效。
     返回 None 表示通过，返回 Response 表示拒绝。
@@ -192,7 +193,7 @@ def check_rate_limit() -> Optional[Any]:
 # ── 组合守卫装饰器 ────────────────────────────────────
 
 
-def external_api_guards(feature: Optional[str] = None) -> Callable:
+def external_api_guards(feature: str | None = None) -> Callable:
     """
     组合守卫装饰器：IP 白名单 → 限流 → 功能禁用检查。
     放在 @api_key_required 之后。

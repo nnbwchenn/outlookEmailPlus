@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from flask import current_app, jsonify, request
 
-from outlook_web import config
 from outlook_web.audit import log_audit
 from outlook_web.errors import build_error_payload, build_error_response
 from outlook_web.repositories import accounts as accounts_repo
@@ -18,7 +17,6 @@ from outlook_web.services import email_delete as email_delete_service
 from outlook_web.services import external_api as external_api_service
 from outlook_web.services import graph as graph_service
 from outlook_web.services import imap as imap_service
-from outlook_web.services import verification_channel_routing as verification_channel_service
 from outlook_web.services.imap_generic import (
     get_email_detail_imap_generic_result,
     get_emails_imap_generic,
@@ -46,7 +44,7 @@ def _expected_field_for_verification_request(field: str) -> str | None:
     return None
 
 
-def _has_requested_verification_result(data: Dict[str, Any], expected_field: str | None) -> bool:
+def _has_requested_verification_result(data: dict[str, Any], expected_field: str | None) -> bool:
     if expected_field:
         return bool((data or {}).get(expected_field))
     return bool(
@@ -87,7 +85,7 @@ def _build_account_credential_decrypt_failed_response(account: dict[str, Any]):
     )
 
 
-def _persist_refresh_token(account: Dict[str, Any], new_refresh_token: str) -> None:
+def _persist_refresh_token(account: dict[str, Any], new_refresh_token: str) -> None:
     token = str(new_refresh_token or "").strip()
     if not token:
         return
@@ -95,7 +93,7 @@ def _persist_refresh_token(account: Dict[str, Any], new_refresh_token: str) -> N
         account["refresh_token"] = token
 
 
-def _update_account_summary_from_verification(account: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
+def _update_account_summary_from_verification(account: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
     return compact_summary_service.update_summary_from_verification(
         int(account["id"]),
         message={
@@ -149,7 +147,7 @@ def api_batch_get_emails() -> Any:
             status=400,
         )
 
-    deduped_ids: List[int] = []
+    deduped_ids: list[int] = []
     seen_ids = set()
     for aid in parsed_ids:
         if aid in seen_ids:
@@ -160,7 +158,7 @@ def api_batch_get_emails() -> Any:
     # 测试环境：避免引入外部上游依赖（Graph/IMAP），只验证接口契约与聚合结构。
     # 生产环境：再走真实拉取链路。
     if bool(current_app.config.get("TESTING")):
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         success_accounts = 0
         failed_accounts = 0
 
@@ -244,7 +242,7 @@ def api_batch_get_emails() -> Any:
             status=400,
         )
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     success_accounts = 0
     failed_accounts = 0
 
@@ -287,7 +285,7 @@ def api_batch_get_emails() -> Any:
         except Exception:
             proxy_url = ""
 
-        per_folder_results: Dict[str, Any] = {}
+        per_folder_results: dict[str, Any] = {}
         any_folder_success = False
 
         for folder in normalized_folders:

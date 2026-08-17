@@ -8,7 +8,6 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime, timezone
-from typing import List
 
 import requests
 
@@ -147,7 +146,7 @@ def _should_fetch_account_via_graph(account: dict) -> bool:
     return str(account.get("provider") or "").strip().lower() == "outlook"
 
 
-def _call_fetcher_with_folder(fetcher, account: dict, since: str, folder: str) -> List[dict]:
+def _call_fetcher_with_folder(fetcher, account: dict, since: str, folder: str) -> list[dict]:
     try:
         return fetcher(account, since, folder=folder)
     except TypeError as exc:
@@ -156,7 +155,7 @@ def _call_fetcher_with_folder(fetcher, account: dict, since: str, folder: str) -
         return fetcher(account, since)
 
 
-def _deduplicate_emails_for_source(account: dict, emails: List[dict]) -> List[dict]:
+def _deduplicate_emails_for_source(account: dict, emails: list[dict]) -> list[dict]:
     source = {
         "source_type": notification_dispatch.SOURCE_ACCOUNT,
         "source_key": notification_dispatch.build_source_key(notification_dispatch.SOURCE_ACCOUNT, account.get("email", "")),
@@ -179,7 +178,7 @@ def _should_fetch_account_via_graph(account: dict) -> bool:
     return str(account.get("provider") or "").strip().lower() == "outlook"
 
 
-def _fetch_new_emails_imap(account: dict, since: str, folder: str = "inbox") -> List[dict]:
+def _fetch_new_emails_imap(account: dict, since: str, folder: str = "inbox") -> list[dict]:
     """通过 IMAP 获取 received_at > since 的邮件，最多返回 50 封。
 
     两步策略：先用 INTERNALDATE 快速过滤，再对命中的邮件下载正文。
@@ -200,7 +199,7 @@ def _fetch_new_emails_imap(account: dict, since: str, folder: str = "inbox") -> 
     since_dt = dt.fromisoformat(since)
     since_date_str = since_dt.strftime("%d-%b-%Y")
 
-    results: List[dict] = []
+    results: list[dict] = []
     conn = None
     try:
         conn = imaplib.IMAP4_SSL(host, port, timeout=15)
@@ -260,7 +259,7 @@ def _fetch_new_emails_imap(account: dict, since: str, folder: str = "inbox") -> 
                 continue
 
             mid = mid_match.group(1)
-            idate_str = date_match.group(1).decode("ascii", errors="replace")
+            date_match.group(1).decode("ascii", errors="replace")
             try:
                 import calendar
                 from imaplib import Internaldate2tuple
@@ -366,7 +365,7 @@ def _fetch_new_emails_imap(account: dict, since: str, folder: str = "inbox") -> 
     return results[:MAX_EMAILS_PER_FETCH]
 
 
-def _fetch_new_emails_graph(account: dict, since: str, folder: str = "inbox") -> List[dict]:
+def _fetch_new_emails_graph(account: dict, since: str, folder: str = "inbox") -> list[dict]:
     """通过 Microsoft Graph API 获取 received_at > since 的邮件，最多返回 50 封。"""
     from outlook_web.security.crypto import decrypt_data
     from outlook_web.services.graph import build_proxies, get_access_token_graph
@@ -392,7 +391,7 @@ def _fetch_new_emails_graph(account: dict, since: str, folder: str = "inbox") ->
     headers = {"Authorization": f"Bearer {access_token}"}
     proxies = build_proxies(proxy_url)
 
-    results: List[dict] = []
+    results: list[dict] = []
     try:
         resp = requests.get(url, headers=headers, params=params, timeout=15, proxies=proxies)
         if not resp.ok:
@@ -536,7 +535,7 @@ def _fetch_account_emails(account: dict) -> tuple:
 
     try:
         if _should_fetch_account_via_graph(account):
-            emails: List[dict] = []
+            emails: list[dict] = []
             for folder in notification_dispatch.ACCOUNT_INCLUDED_FOLDERS:
                 emails.extend(_call_fetcher_with_folder(_fetch_new_emails_graph, account, last_checked, folder))
         else:

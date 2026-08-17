@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, Optional
+from typing import Any
 
 from outlook_web.repositories import accounts as accounts_repo
 from outlook_web.repositories import groups as groups_repo
@@ -23,7 +24,7 @@ COMPACT_SUMMARY_FIELDS = (
 )
 
 
-def empty_compact_summary() -> Dict[str, str]:
+def empty_compact_summary() -> dict[str, str]:
     return {field: "" for field in COMPACT_SUMMARY_FIELDS}
 
 
@@ -50,7 +51,7 @@ def parse_received_at(value: Any) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def build_summary_from_account_row(account: Optional[Dict[str, Any]]) -> Dict[str, str]:
+def build_summary_from_account_row(account: dict[str, Any] | None) -> dict[str, str]:
     summary = empty_compact_summary()
     if not account:
         return summary
@@ -59,7 +60,7 @@ def build_summary_from_account_row(account: Optional[Dict[str, Any]]) -> Dict[st
     return summary
 
 
-def normalize_message_summary(message: Optional[Dict[str, Any]], *, folder: str = "") -> Dict[str, str]:
+def normalize_message_summary(message: dict[str, Any] | None, *, folder: str = "") -> dict[str, str]:
     payload = message or {}
 
     sender = payload.get("from")
@@ -80,7 +81,7 @@ def normalize_message_summary(message: Optional[Dict[str, Any]], *, folder: str 
     }
 
 
-def _pick_latest_message(messages: Iterable[Dict[str, Any]]) -> Optional[Dict[str, str]]:
+def _pick_latest_message(messages: Iterable[dict[str, Any]]) -> dict[str, str] | None:
     normalized = [item for item in messages if item]
     if not normalized:
         return None
@@ -112,11 +113,11 @@ def _resolve_compact_verification_policy(account_id: int):
 
 
 def _pick_latest_verification_message(
-    messages: Iterable[Dict[str, Any]],
+    messages: Iterable[dict[str, Any]],
     *,
     verification_policy,
-) -> Optional[Dict[str, str]]:
-    latest_match: Optional[Dict[str, str]] = None
+) -> dict[str, str] | None:
+    latest_match: dict[str, str] | None = None
 
     for message in messages:
         if not message:
@@ -148,7 +149,7 @@ def _pick_latest_verification_message(
     return latest_match
 
 
-def _merge_latest_email(summary: Dict[str, str], message: Optional[Dict[str, str]]) -> Dict[str, str]:
+def _merge_latest_email(summary: dict[str, str], message: dict[str, str] | None) -> dict[str, str]:
     if not message:
         return summary
 
@@ -170,12 +171,12 @@ def _merge_latest_email(summary: Dict[str, str], message: Optional[Dict[str, str
 
 
 def _merge_latest_verification(
-    summary: Dict[str, str],
+    summary: dict[str, str],
     *,
     verification_code: str,
     folder: str,
     received_at: str,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     code = str(verification_code or "").strip()
     if not code:
         return summary
@@ -197,8 +198,8 @@ def _merge_latest_verification(
 
 
 def update_summary_from_message_list(
-    account_id: int, messages: Iterable[Dict[str, Any]], *, folder: str = ""
-) -> Dict[str, str]:
+    account_id: int, messages: Iterable[dict[str, Any]], *, folder: str = ""
+) -> dict[str, str]:
     current = accounts_repo.get_account_compact_summary(account_id) or empty_compact_summary()
     normalized_messages = [normalize_message_summary(message, folder=folder) for message in messages or []]
     verification_policy = _resolve_compact_verification_policy(account_id)
@@ -219,10 +220,10 @@ def update_summary_from_message_list(
 def update_summary_from_verification(
     account_id: int,
     *,
-    message: Optional[Dict[str, Any]],
+    message: dict[str, Any] | None,
     verification_code: str,
     folder: str = "",
-) -> Dict[str, str]:
+) -> dict[str, str]:
     current = accounts_repo.get_account_compact_summary(account_id) or empty_compact_summary()
     normalized = normalize_message_summary(message, folder=folder)
     updated = _merge_latest_email(current, normalized)

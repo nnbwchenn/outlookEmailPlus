@@ -14,127 +14,202 @@
         <header class="token-tool-header">
             <div>
                 <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>OAuth Token 工具</h1>
-                <p>通过 Microsoft OAuth 获取 Token 并写入账号。支持个人 Microsoft 账号（Public Client、IMAP / Graph）。</p>
+                <p>获取邮箱的 <code>client_id</code> 与 <code>refresh_token</code> 并写入账号。支持<strong>一键授权</strong>与<strong>手动授权</strong>两种方式。</p>
             </div>
             <button type="button" class="btn-inline ghost" onclick="window.close()">关闭</button>
         </header>
 
-        <details id="guide-card" class="token-card token-details" open>
-            <summary class="token-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Azure 应用注册快速指引</summary>
-            <div class="guide-body">
-                <p class="token-field-hint" style="margin-bottom:12px;">如果你是第一次使用，请先在 Azure 门户注册一个应用，获取 Client ID 后再填写下方配置。</p>
+        <ol class="token-steps" id="tokenSteps" aria-label="授权流程">
+            <li class="step active" data-step="1"><span class="step-dot">1</span>OAuth 配置</li>
+            <li class="step" data-step="2"><span class="step-dot">2</span>授权链接</li>
+            <li class="step" data-step="3"><span class="step-dot">3</span>换取 Token</li>
+            <li class="step" data-step="4"><span class="step-dot">4</span>写入账号</li>
+        </ol>
+
+        <div id="statusMessage" class="token-status hidden" role="alert"></div>
+
+        <!-- ===== OAuth 配置（两种方式共用） ===== -->
+        <section class="token-card">
+            <div class="token-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>OAuth 配置</div>
+            <div class="token-form-grid">
+                <label class="token-field">
+                    <span>Client ID</span>
+                    <input id="clientId" type="text" class="form-input" placeholder="默认 Thunderbird ID，可替换为自己的 Azure Client ID">
+                </label>
+                <label class="token-field">
+                    <span>Redirect URI</span>
+                    <input id="redirectUri" type="text" class="form-input" placeholder="固定 https://localhost（Thunderbird 已登记回调）">
+                </label>
+                <div class="token-field token-field-full">
+                    <span>授权范围（Scope）</span>
+                    <div class="scope-summary" id="scopeSummary">
+                        <code id="scopeReadonlyText"></code>
+                        <span class="token-field-hint">默认 Graph 主链路（Mail.ReadWrite + offline_access），无需修改</span>
+                    </div>
+                    <details class="scope-advanced" id="scopeAdvanced">
+                        <summary>高级：自定义 Scope（使用自己的 Azure 应用时）</summary>
+                        <div class="scope-editor">
+                            <div id="scopeChips" class="scope-chip-list"></div>
+                            <div class="scope-entry-row">
+                                <input id="scopeEntry" type="text" class="form-input" placeholder="输入 scope，支持空格 / 逗号 / 分号分隔">
+                                <button type="button" class="btn-inline" onclick="addScopeFromInput()">添加</button>
+                            </div>
+                            <div class="scope-presets">
+                                <button type="button" class="btn-inline ghost" onclick="setScopePreset('graph')">Graph 邮件</button>
+                                <button type="button" class="btn-inline ghost" onclick="setScopePreset('imap')">IMAP 通道</button>
+                            </div>
+                            <small class="token-field-hint">Thunderbird 默认 ID 请保持 Mail.ReadWrite；切 IMAP 仅适用于自建应用。</small>
+                            <input id="scopeValue" type="hidden" value="">
+                        </div>
+                    </details>
+                </div>
+            </div>
+            <div class="token-action-row">
+                <div class="token-button-row">
+                    <button type="button" class="btn-inline ghost" onclick="saveConfig()">保存配置</button>
+                    <span class="token-field-hint">保存后配置会用于后续授权</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== 授权方式选择（Tab 切换 + 教程） ===== -->
+        <section class="token-card">
+            <div class="token-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>选择授权方式</div>
+
+            <div class="auth-tabs" role="tablist">
+                <button type="button" class="auth-tab" data-method="oneclick" role="tab" onclick="switchAuthMethod('oneclick')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>方式一 · 一键授权
+                    <small>弹窗自动回传，需自建 Azure 应用</small>
+                </button>
+                <button type="button" class="auth-tab" data-method="manual" role="tab" onclick="switchAuthMethod('manual')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>方式二 · 手动授权
+                    <small>免注册 Azure，默认 Thunderbird ID</small>
+                </button>
+            </div>
+
+            <!-- 方式一：一键授权 -->
+            <div class="auth-pane" id="authPane-oneclick" role="tabpanel">
+                <p class="token-field-hint" style="margin-bottom:12px;">
+                    方式一适合想用「网页弹窗一键授权」的用户：需先注册自己的 Azure 应用（约 5 分钟），
+                    之后每个邮箱授权都是一键完成。不想注册？直接用下方「方式二」即可。
+                </p>
 
                 <div class="guide-step">
-                    <div class="guide-step-num">①</div>
+                    <div class="guide-step-num">1</div>
                     <div class="guide-step-content">
-                        <strong>注册应用</strong>
+                        <strong>注册 Azure 应用</strong>
                         <p>
                             进入
                             <a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener">Azure 门户 → 应用注册</a>，点击「新注册」。
                         </p>
                         <ul>
-                            <li>名称：自定义（如 "OutlookEmailPlus"）</li>
+                            <li>名称：自定义（如 <code>OutlookEmailPlus</code>）</li>
                             <li>受支持的账户类型：选择「<strong>Accounts in any organizational directory and personal Microsoft accounts</strong>」（任意目录 + 个人账号）</li>
-                            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>不要选「仅个人 Microsoft accounts」，否则会触发 AADSTS9002331 错误</li>
+                            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>不要选「仅个人 Microsoft accounts」，否则会触发 <code>AADSTS9002331</code> 错误</li>
                         </ul>
                     </div>
                 </div>
 
                 <div class="guide-step">
-                    <div class="guide-step-num">②</div>
+                    <div class="guide-step-num">2</div>
+                    <div class="guide-step-content">
+                        <strong>配置平台与重定向 URI</strong>
+                        <p>进入应用 →「身份验证」→「添加平台」→ 选择「<strong>移动和桌面应用程序</strong>」（公共客户端，无需 Client Secret）；在「自定义重定向 URI」填入本服务回调地址：</p>
+                        <ul>
+                            <li><code id="callbackUriSample">…/token-tool/callback</code></li>
+                            <li>若选「Web」平台也可以，但必须配合第 3 步开启公共客户端流</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-step">
+                    <div class="guide-step-num">3</div>
                     <div class="guide-step-content">
                         <strong>开启公共客户端流</strong>
-                        <p>进入应用 →「身份验证」→ 页面底部「高级设置」→ 将「允许公共客户端流」设为「是」。</p>
+                        <p>同页「身份验证」→ 页面底部「高级设置」→ 将「允许公共客户端流」设为「<strong>是</strong>」。</p>
                         <p class="token-field-hint" style="margin-top:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>这一步最容易遗漏！缺失会导致 <code>unauthorized_client</code> 错误。</p>
                     </div>
                 </div>
 
                 <div class="guide-step">
-                    <div class="guide-step-num">③</div>
+                    <div class="guide-step-num">4</div>
                     <div class="guide-step-content">
                         <strong>配置 API 权限</strong>
-                        <p>进入应用 →「API 权限」→「添加权限」→ 选择「Microsoft Graph」→「委托的权限」，添加以下权限：</p>
+                        <p>进入应用 →「API 权限」→「添加权限」→ 选择「Microsoft Graph」→「<strong>委托的权限</strong>」，添加以下权限：</p>
                         <ul>
                             <li><code>offline_access</code>（必须，用于获取 refresh_token）</li>
-                            <li><code>Mail.Read</code>（读取邮件）</li>
-                            <li><code>User.Read</code>（读取用户信息）</li>
+                            <li><code>Mail.ReadWrite</code>（读取 + 删除邮件，本系统主链路）</li>
+                            <li><code>User.Read</code>（读取用户信息，可选）</li>
                         </ul>
-                        <p class="token-field-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>推荐使用 Graph 协议（本系统默认邮件读取主链路），直接使用「Graph 邮件」预设即可。</p>
+                        <p class="token-field-hint" style="margin-top:4px;">💡 若只用 IMAP 通道，可在上方「高级」中切换 IMAP 预设，则此处无需 Graph 权限。</p>
                     </div>
                 </div>
 
                 <div class="guide-step">
-                    <div class="guide-step-num">④</div>
+                    <div class="guide-step-num">5</div>
                     <div class="guide-step-content">
-                        <strong>配置重定向 URI</strong>
-                        <p>在「身份验证」页面添加一个「Web」平台的重定向 URI，填入本工具页面的回调地址。</p>
+                        <strong>填入 Client ID 并一键授权</strong>
+                        <p>进入应用「概述」页，复制「<strong>应用程序（客户端）ID</strong>」，填入上方 OAuth 配置的 Client ID；Redirect URI 改为本服务回调地址（<code id="callbackUriSample2">…/token-tool/callback</code>）。</p>
+                        <p>然后点下方「一键授权」→ 弹窗打开微软登录页 → 登录 Outlook / Hotmail 邮箱并同意 → 授权成功自动回传，<strong>自动换取 Token</strong>，无需复制粘贴。</p>
+                    </div>
+                </div>
+
+                <div class="auth-pane-actions">
+                    <button type="button" id="oneClickOAuthBtn" class="btn-inline primary btn-lg">⚡ 一键授权</button>
+                    <label class="checkbox-inline">
+                        <input id="promptConsent" type="checkbox">
+                        <span>强制 Consent</span>
+                    </label>
+                    <span class="token-field-hint">勾选后每次授权都会弹出同意页（<code>prompt=consent</code>），适合同一 Client ID 授权多个邮箱时确保权限明确。</span>
+                    <span id="oneClickHint" class="token-field-hint" style="color:var(--clr-warn);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        当前为 Thunderbird 默认 ID（回调 https://localhost），不支持弹窗回传；请按上方 1-5 步注册自建应用，或切到「方式二」免注册直接授权。
+                    </span>
+                </div>
+            </div>
+
+            <!-- 方式二：手动授权 -->
+            <div class="auth-pane" id="authPane-manual" role="tabpanel" hidden>
+                <div class="guide-step">
+                    <div class="guide-step-num">1</div>
+                    <div class="guide-step-content">
+                        <strong>打开授权页并登录</strong>
+                        <p>点下方「获取授权链接」→「打开链接」进入 Microsoft 登录页，用你的 Outlook / Hotmail 邮箱登录并同意授权。</p>
                         <ul>
-                            <li>本地部署：<code>http://localhost:5001/token-tool/callback</code>（端口号根据实际调整）</li>
-                            <li>Docker/远程部署：可填 <code>http://localhost</code>，授权后手动复制地址栏 URL 粘贴回本工具</li>
+                            <li>Client ID 已默认填入 Thunderbird 公开 ID（<code>9e5f94bc-e8a4-4e73-b8be-63364c29d753</code>），<strong>无需注册任何应用</strong></li>
+                            <li>Redirect URI 固定为 <code>https://localhost</code>（Thunderbird 已登记的回调地址）</li>
                         </ul>
                     </div>
                 </div>
-
                 <div class="guide-step">
-                    <div class="guide-step-num">⑤</div>
+                    <div class="guide-step-num">2</div>
                     <div class="guide-step-content">
-                        <strong>获取 Client ID</strong>
-                        <p>回到应用「概述」页面，复制「应用程序(客户端) ID」，粘贴到下方 OAuth 配置的 Client ID 输入框中。</p>
+                        <strong>复制跳转后的完整网址</strong>
+                        <p>授权成功后浏览器跳转到 <code>https://localhost?code=...</code>，页面显示“无法访问此网站”是<strong>正常现象</strong>。</p>
+                        <p class="token-field-hint" style="margin-top:4px;">复制地址栏中的<strong>完整 URL</strong>（从 <code>https://localhost?code=</code> 开始），粘贴到下方「换取 Token」区域。</p>
                     </div>
                 </div>
-
-                <div class="guide-links">
-                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>详细教程：</span>
-                    <!-- 教程链接占位区 — 在此添加教程链接，格式：<a href="URL" target="_blank" rel="noopener">标题</a> -->
-                    <a href="https://real-caption-6d1.notion.site/OutlooKMailplus-token-344463aed7e680099380dc324ecdf1c9?source=copy_link" target="_blank" rel="noopener">OutlookMailPlus Token 教程</a>
-                </div>
-            </div>
-        </details>
-
-        <div id="statusMessage" class="token-status hidden" role="alert"></div>
-
-        <section class="token-card">
-            <div class="token-card-title">① OAuth 配置</div>
-            <div class="token-form-grid">
-                <label class="token-field">
-                    <span>Client ID</span>
-                    <input id="clientId" type="text" class="form-input" placeholder="请输入 Azure 应用 Client ID">
-                </label>
-                <label class="token-field">
-                    <span>Redirect URI</span>
-                    <input id="redirectUri" type="text" class="form-input" placeholder="https://example.com/token-tool/callback">
-                </label>
-                <div class="token-field token-field-full">
-                    <span>Scope</span>
-                    <div class="scope-editor">
-                        <div id="scopeChips" class="scope-chip-list"></div>
-                        <div class="scope-entry-row">
-                            <input id="scopeEntry" type="text" class="form-input" placeholder="输入 scope，支持空格 / 逗号 / 分号分隔">
-                            <button type="button" class="btn-inline" onclick="addScopeFromInput()">添加</button>
-                        </div>
-                        <div class="scope-presets">
-                            <button type="button" class="btn-inline ghost" onclick="setScopePreset('graph')">Graph 邮件</button>
-                            <button type="button" class="btn-inline ghost" onclick="setScopePreset('imap')">IMAP</button>
-                        </div>
-                        <small class="token-field-hint">推荐优先使用 Graph 邮件预设（系统默认邮件读取主链路）；如需 IMAP 协议请切换至 IMAP 预设。</small>
-                        <input id="scopeValue" type="hidden" value="">
+                <div class="guide-step">
+                    <div class="guide-step-num">3</div>
+                    <div class="guide-step-content">
+                        <strong>换取 Token 并写入账号</strong>
+                        <p>点「换取 Token」自动完成授权码交换，拿到 <code>refresh_token</code> 后即可「写入到账号」。</p>
+                        <ul>
+                            <li>默认 scope：<code>Mail.ReadWrite offline_access</code>（Graph 读取 + 删除邮件），与本系统主链路一致</li>
+                            <li>若用 IMAP 通道，可在上方「高级」中切换 IMAP 预设</li>
+                        </ul>
                     </div>
                 </div>
-            </div>
-            <div class="token-action-row">
-                <label class="checkbox-inline">
-                    <input id="promptConsent" type="checkbox">
-                    <span>强制 Consent</span>
-                </label>
-                <div class="token-button-row">
-                    <button type="button" class="btn-inline" onclick="saveConfig()">保存配置</button>
-                    <button type="button" class="btn-inline primary" onclick="startOAuth()">获取授权链接</button>
+                <div class="auth-pane-actions">
+                    <button type="button" class="btn-inline primary btn-lg" onclick="startOAuth()">🔗 获取授权链接</button>
+                    <span class="token-field-hint">适用于大多数场景，推荐首选</span>
                 </div>
             </div>
         </section>
 
+        <!-- ===== 授权链接（方式二生成后展示） ===== -->
         <section id="authorize-link-panel" class="token-card hidden">
-            <div class="token-card-title">② 授权链接</div>
+            <div class="token-card-title">授权链接</div>
             <div class="token-field token-field-full">
                 <span>请在浏览器中打开以下链接完成授权</span>
                 <div class="authorize-link-row">
@@ -142,16 +217,17 @@
                     <button type="button" class="btn-inline" onclick="copyAuthorizeLink()">复制链接</button>
                     <button type="button" class="btn-inline" onclick="openAuthorizeLink()">打开链接</button>
                 </div>
-                <small class="token-field-hint">授权完成后，浏览器会跳转到回调地址。请将地址栏中的完整 URL 复制并粘贴到下方「换取 Token」区域。</small>
+                <small class="token-field-hint">授权完成后浏览器会跳转到 <code>https://localhost?code=...</code>（页面打不开是正常的），请复制地址栏完整 URL 粘贴到下方「换取 Token」区域。</small>
             </div>
         </section>
 
+        <!-- ===== 换取 Token ===== -->
         <details id="manual-exchange" class="token-card token-details">
-            <summary>③ 换取 Token</summary>
+            <summary>换取 Token</summary>
             <div class="token-details-body">
                 <label class="token-field token-field-full">
                     <span>回调 URL</span>
-                    <textarea id="callbackUrl" class="form-input token-textarea" placeholder="粘贴完整回调地址，例如 http://localhost:5000/token-tool/callback?code=...&state=..."></textarea>
+                    <textarea id="callbackUrl" class="form-input token-textarea" placeholder="粘贴完整回调地址，例如 https://localhost?code=...&state=..."></textarea>
                 </label>
                 <div class="token-button-row">
                     <button type="button" class="btn-inline primary" onclick="exchangeToken()">换取 Token</button>
@@ -159,8 +235,9 @@
             </div>
         </details>
 
+        <!-- ===== 结果 ===== -->
         <section id="result-panel" class="token-card hidden">
-            <div class="token-card-title">④ 结果</div>
+            <div class="token-card-title">结果</div>
             <div id="resultSuccessBanner" class="token-success-banner hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><polyline points="20 6 9 17 4 12"/></svg>Token 获取成功</div>
             <div class="result-grid">
                 <div class="result-item result-item-full">
@@ -213,6 +290,11 @@
                 <button type="button" class="btn-inline primary" onclick="openSaveDialog()">写入到账号</button>
             </div>
         </section>
+
+        <div class="guide-links token-card" style="border-style:dashed;">
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-svg"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>详细教程：</span>
+                <a href="https://real-caption-6d1.notion.site/OutlooKMailplus-token-344463aed7e680099380dc324ecdf1c9?source=copy_link" target="_blank" rel="noopener">OutlookMailPlus Token 教程</a>
+        </div>
     </main>
 
     <dialog id="save-dialog" class="token-dialog">

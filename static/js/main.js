@@ -388,9 +388,7 @@
                 // 图标代表目标主题：浅色下显示月亮（切到深色），深色下显示太阳（切到浅色）
                 btn.querySelectorAll('.theme-icon-sun').forEach(el => el.style.display = theme === 'dark' ? '' : 'none');
                 btn.querySelectorAll('.theme-icon-moon').forEach(el => el.style.display = theme === 'dark' ? 'none' : '');
-                // 文字：深色模式下显示「浅色模式」（点击切换到浅色），浅色模式下显示「深色模式」
-                const label = btn.querySelector('.theme-label');
-                if (label) label.textContent = translateAppTextLocal(theme === 'dark' ? '浅色模式' : '深色模式');
+                // 主题按钮仅保留 SVG 图标（文字已移除）
             }
         }
 

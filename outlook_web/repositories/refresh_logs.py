@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from outlook_web.db import get_db
 
 
@@ -10,8 +8,8 @@ def log_refresh_result(
     account_email: str,
     refresh_type: str,
     status: str,
-    error_message: str = None,
-    run_id: str = None,
+    error_message: str | None = None,
+    run_id: str | None = None,
 ) -> bool:
     """记录刷新结果到数据库"""
     db = get_db()

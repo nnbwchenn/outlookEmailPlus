@@ -25,6 +25,20 @@ function initOverview() {
     if (!page) return;
     syncOverviewStaticText();
 
+    // 跨断点切换（平板/电脑 ↔ 手机）时重置 Tab 行滚动位置：
+    // 避免小屏下容器残留 scrollLeft 导致「总览」等首项按钮被裁切在左侧。
+    if (!window.__overviewResizeBound) {
+        const resetOvTabScroll = () => {
+            if (window.innerWidth <= 900) {
+                const nav = document.querySelector('.ov-tab-nav');
+                if (nav) nav.scrollLeft = 0;
+            }
+        };
+        window.addEventListener('resize', resetOvTabScroll, { passive: true });
+        window.addEventListener('orientationchange', resetOvTabScroll, { passive: true });
+        window.__overviewResizeBound = true;
+    }
+
     if (!__overviewBound) {
         document.querySelectorAll('.ov-tab').forEach((button) => {
             button.addEventListener('click', () => switchOverviewTab(button.dataset.tab || 'summary'));

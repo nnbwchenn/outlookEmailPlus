@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 启动脚本 - 智能初始化环境变量并启动 Flask 应用
 """
@@ -64,7 +63,7 @@ def ensure_env_file():
         print("   3. 不要将 .env 文件提交到 Git 仓库")
         print("=" * 60)
     else:
-        print(f"✅ 使用现有的 SECRET_KEY（已保护数据安全）")
+        print("✅ 使用现有的 SECRET_KEY（已保护数据安全）")
 
 
 # 初始化环境文件

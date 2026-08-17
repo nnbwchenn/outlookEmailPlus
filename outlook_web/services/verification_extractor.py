@@ -12,7 +12,7 @@ import json
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -41,41 +41,41 @@ def _has_code_context(email_content: str) -> bool:
     return vce._has_code_context(email_content)
 
 
-def _find_hyphenated_code_in_text(text: str) -> Optional[str]:
+def _find_hyphenated_code_in_text(text: str) -> str | None:
     return vce._find_hyphenated_code_in_text(text)
 
 
-def _smart_extract_hyphenated_verification_code(email_content: str) -> Optional[str]:
+def _smart_extract_hyphenated_verification_code(email_content: str) -> str | None:
     return vce.smart_extract_hyphenated_verification_code(email_content)
 
 
-def _fallback_extract_hyphenated_verification_code(email_content: str) -> Optional[str]:
+def _fallback_extract_hyphenated_verification_code(email_content: str) -> str | None:
     return vce.fallback_extract_hyphenated_verification_code(email_content)
 
 
-def smart_extract_verification_code(email_content: str) -> Optional[str]:
+def smart_extract_verification_code(email_content: str) -> str | None:
     return vce.smart_extract_verification_code(email_content)
 
 
-def fallback_extract_verification_code(email_content: str) -> Optional[str]:
+def fallback_extract_verification_code(email_content: str) -> str | None:
     return vce.fallback_extract_verification_code(email_content)
 
 
-def extract_links(email_content: str) -> List[str]:
+def extract_links(email_content: str) -> list[str]:
     return vce.extract_links(email_content)
 
 
-def extract_email_text(email: Dict[str, Any]) -> str:
+def extract_email_text(email: dict[str, Any]) -> str:
     return vce.extract_email_text(email)
 
 
-def extract_verification_info_from_text(email_content: str) -> Dict[str, Any]:
+def extract_verification_info_from_text(email_content: str) -> dict[str, Any]:
     verification_code = smart_extract_verification_code(email_content)
     if not verification_code:
         verification_code = fallback_extract_verification_code(email_content)
 
     links = extract_links(email_content)
-    parts: List[str] = []
+    parts: list[str] = []
     if verification_code:
         parts.append(verification_code)
     parts.extend(links)
@@ -87,7 +87,7 @@ def extract_verification_info_from_text(email_content: str) -> Dict[str, Any]:
     }
 
 
-def extract_verification_info(email: Dict[str, Any]) -> Dict[str, Any]:
+def extract_verification_info(email: dict[str, Any]) -> dict[str, Any]:
     email_content = extract_email_text(email)
     if not email_content:
         raise ValueError("邮件内容为空")
@@ -98,7 +98,7 @@ def extract_verification_info(email: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def _extract_content_text_without_subject(email: Dict[str, Any]) -> str:
+def _extract_content_text_without_subject(email: dict[str, Any]) -> str:
     return vce.extract_content_text_without_subject(vce.VerificationInput.from_email_dict(email))
 
 
@@ -110,27 +110,27 @@ def _build_code_regex(*, code_regex: str | None, code_length: str | None) -> re.
     return vce.build_code_regex(code_regex=code_regex, code_length=code_length)
 
 
-def _smart_extract_code_by_keywords(email_content: str, code_re: re.Pattern[str]) -> Optional[str]:
+def _smart_extract_code_by_keywords(email_content: str, code_re: re.Pattern[str]) -> str | None:
     return vce.smart_extract_code_by_keywords(email_content, code_re)
 
 
-def _fallback_extract_code(email_content: str, code_re: re.Pattern[str]) -> Optional[str]:
+def _fallback_extract_code(email_content: str, code_re: re.Pattern[str]) -> str | None:
     return vce.fallback_extract_code(email_content, code_re)
 
 
-def _pick_preferred_link(links: List[str], prefer_link_keywords: List[str]) -> Optional[str]:
+def _pick_preferred_link(links: list[str], prefer_link_keywords: list[str]) -> str | None:
     return vce.pick_preferred_link(links, prefer_link_keywords)
 
 
 def extract_verification_info_with_options(
-    email: Dict[str, Any],
+    email: dict[str, Any],
     *,
     code_regex: str | None = None,
     code_length: str | None = None,
     code_source: str = "all",
     prefer_link_keywords: list[str] | None = None,
     enforce_mutual_exclusion: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     return vce.extract_verification_from_email_dict(
         email,
         code_regex=code_regex,
@@ -142,11 +142,11 @@ def extract_verification_info_with_options(
     )
 
 
-def apply_confidence_gate(extracted: Dict[str, Any], *, enforce_mutual_exclusion: bool = True) -> Dict[str, Any]:
+def apply_confidence_gate(extracted: dict[str, Any], *, enforce_mutual_exclusion: bool = True) -> dict[str, Any]:
     return vce.apply_confidence_gate(extracted, enforce_mutual_exclusion=enforce_mutual_exclusion)
 
 
-def get_verification_ai_runtime_config() -> Dict[str, Any]:
+def get_verification_ai_runtime_config() -> dict[str, Any]:
     return {
         "enabled": settings_repo.get_verification_ai_enabled(),
         "base_url": settings_repo.get_verification_ai_base_url(),
@@ -155,7 +155,7 @@ def get_verification_ai_runtime_config() -> Dict[str, Any]:
     }
 
 
-def is_verification_ai_config_complete(config: Dict[str, Any]) -> bool:
+def is_verification_ai_config_complete(config: dict[str, Any]) -> bool:
     return bool(
         (config or {}).get("enabled")
         and str((config or {}).get("base_url") or "").strip()
@@ -165,12 +165,12 @@ def is_verification_ai_config_complete(config: Dict[str, Any]) -> bool:
 
 
 def build_verification_ai_input_payload(
-    email: Dict[str, Any],
+    email: dict[str, Any],
     *,
     code_regex: str | None = None,
     code_length: str | None = None,
     code_source: str = "all",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     return {
         "schema_version": VERIFICATION_AI_SCHEMA_VERSION,
         "task": "extract_verification",
@@ -198,7 +198,7 @@ def _normalize_verification_ai_endpoint(base_url: str) -> str:
     return value.rstrip("/") + "/chat/completions"
 
 
-def _parse_verification_ai_content(raw_content: str) -> Optional[Dict[str, Any]]:
+def _parse_verification_ai_content(raw_content: str) -> dict[str, Any] | None:
     text = str(raw_content or "").strip()
     if not text:
         return None
@@ -260,7 +260,7 @@ def _parse_verification_ai_content(raw_content: str) -> Optional[Dict[str, Any]]
     }
 
 
-def _call_verification_ai(ai_config: Dict[str, Any], ai_input: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _call_verification_ai(ai_config: dict[str, Any], ai_input: dict[str, Any]) -> dict[str, Any] | None:
     endpoint = _normalize_verification_ai_endpoint(str((ai_config or {}).get("base_url") or ""))
     api_key = str((ai_config or {}).get("api_key") or "").strip()
     model = str((ai_config or {}).get("model") or "").strip()
@@ -310,13 +310,13 @@ def _call_verification_ai(ai_config: Dict[str, Any], ai_input: Dict[str, Any]) -
 
 def probe_verification_ai_runtime(
     *,
-    ai_config: Dict[str, Any],
-    sample_email: Optional[Dict[str, Any]] = None,
+    ai_config: dict[str, Any],
+    sample_email: dict[str, Any] | None = None,
     code_regex: str | None = None,
     code_length: str | None = "6-6",
     code_source: str = "all",
     timeout_seconds: int = 8,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     endpoint = _normalize_verification_ai_endpoint(str((ai_config or {}).get("base_url") or ""))
     model = str((ai_config or {}).get("model") or "").strip()
     api_key = str((ai_config or {}).get("api_key") or "").strip()
@@ -473,14 +473,14 @@ def probe_verification_ai_runtime(
 
 def enhance_verification_with_ai_fallback(
     *,
-    email: Dict[str, Any],
-    extracted: Dict[str, Any],
+    email: dict[str, Any],
+    extracted: dict[str, Any],
     code_regex: str | None = None,
     code_length: str | None = None,
     code_source: str = "all",
     enforce_mutual_exclusion: bool = True,
-) -> Dict[str, Any]:
-    def _apply_output_policy(payload: Dict[str, Any]) -> Dict[str, Any]:
+) -> dict[str, Any]:
+    def _apply_output_policy(payload: dict[str, Any]) -> dict[str, Any]:
         normalized = dict(payload or {})
 
         if enforce_mutual_exclusion and normalized.get("verification_code"):

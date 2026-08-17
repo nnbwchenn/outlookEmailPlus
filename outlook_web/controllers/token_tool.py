@@ -5,10 +5,10 @@
 
 业务背景:
   - PRD: docs/PRD/2026-04-12-OAuth-Token获取工具PRD.md (v1.3)
-  - 收口范围: "兼容账号导入模式" — tenant 固定 consumers, 禁用 client_secret
+  - 收口范围: "方式二手动授权" — tenant 固定 common, 默认 Thunderbird Client ID, 免注册 Azure
 
 设计决策 (FD v1.0 §收口说明):
-  - prepare / config / save 接口均拒绝不兼容输入 (client_secret / 非 consumers tenant)
+  - prepare / config / save 接口均拒绝不兼容输入 (client_secret / 非 common tenant)
   - save_to_account 使用 test_refresh_token_with_rotation 验证后再写入
   - 回调页 (popup_result.html) 不直接换取 token, 统一走手动粘贴 exchange 接口
 """
@@ -29,8 +29,12 @@ from outlook_web.security.auth import login_required
 from outlook_web.services import graph as graph_service
 from outlook_web.services import oauth_tool as oauth_tool_service
 
-# 兼容模式常量 — 当前仅支持个人 Microsoft 账号导入 (FD 收口说明)
-COMPATIBLE_TENANT = "consumers"
+# 方式二：手动授权（免注册 Azure，用默认 Thunderbird ID）
+# Thunderbird 公开 Client ID（9e5f94bc-e8a4-4e73-b8be-63364c29d753）在 Azure 已登记
+# https://localhost 为回调地址，因此无需注册自己的应用即可完成授权。
+THUNDERBIRD_CLIENT_ID = "9e5f94bc-e8a4-4e73-b8be-63364c29d753"
+DEFAULT_REDIRECT_URI = "https://localhost"
+COMPATIBLE_TENANT = "common"
 LEGACY_GRAPH_SCOPE = "offline_access https://graph.microsoft.com/.default"
 COMPATIBLE_SCOPE = app_config.get_oauth_scope_default()
 
@@ -42,12 +46,12 @@ def _ensure_oauth_tool_enabled() -> None:
 
 
 def _compatibility_mode_error(client_secret: str, tenant: str) -> str | None:
-    """兼容模式校验: 拒绝 client_secret 和非 consumers tenant (FD 收口说明)"""
+    """方式二校验: 拒绝 client_secret 和非 common tenant"""
     normalized_tenant = (tenant or COMPATIBLE_TENANT).strip() or COMPATIBLE_TENANT
     if client_secret:
-        return "兼容账号导入模式不支持 Client Secret，请使用公共客户端并保持 Client Secret 为空"
+        return "手动授权方式不支持 Client Secret，请使用公共客户端并保持 Client Secret 为空"
     if normalized_tenant != COMPATIBLE_TENANT:
-        return "兼容账号导入模式仅支持 tenant=consumers，请使用与购买账号一致的个人 Microsoft 账号配置"
+        return "手动授权方式仅支持 tenant=common（Thunderbird 公开应用为多租户），请保持默认配置"
     return None
 
 
@@ -70,12 +74,10 @@ def prepare_oauth() -> Any:
     _ensure_oauth_tool_enabled()
     data = request.get_json(silent=True) or {}
 
-    client_id = (data.get("client_id") or "").strip()
-    if not client_id:
-        return build_error_response("OAUTH_CONFIG_INVALID", "Client ID 不能为空", status=400)
+    client_id = (data.get("client_id") or "").strip() or THUNDERBIRD_CLIENT_ID
 
-    redirect_uri = (data.get("redirect_uri") or "").strip()
-    if not redirect_uri or not redirect_uri.startswith(("http://", "https://")):
+    redirect_uri = (data.get("redirect_uri") or "").strip() or DEFAULT_REDIRECT_URI
+    if not redirect_uri.startswith(("http://", "https://")):
         return build_error_response("OAUTH_CONFIG_INVALID", "Redirect URI 格式无效", status=400)
 
     client_secret = (data.get("client_secret") or "").strip()
@@ -173,7 +175,7 @@ def exchange_token() -> Any:
             "client_secret": flow_data.get("client_secret", ""),
             "redirect_uri": flow_data["redirect_uri"],
             "scope": flow_data["scope"],
-            "tenant": flow_data.get("tenant", "consumers"),
+            "tenant": flow_data.get("tenant", COMPATIBLE_TENANT),
         },
         verifier=flow_data["verifier"],
     )
@@ -349,9 +351,9 @@ def get_config() -> Any:
         {
             "success": True,
             "data": {
-                "client_id": settings_repo.get_oauth_tool_client_id(),
+                "client_id": settings_repo.get_oauth_tool_client_id() or THUNDERBIRD_CLIENT_ID,
                 "client_secret": "",
-                "redirect_uri": settings_repo.get_oauth_tool_redirect_uri(),
+                "redirect_uri": settings_repo.get_oauth_tool_redirect_uri() or DEFAULT_REDIRECT_URI,
                 "scope": scope_value,
                 "tenant": COMPATIBLE_TENANT,
                 "prompt_consent": settings_repo.get_oauth_tool_prompt_consent(),

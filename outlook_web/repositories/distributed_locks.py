@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def acquire_distributed_lock(
@@ -10,7 +10,7 @@ def acquire_distributed_lock(
     name: str,
     owner_id: str,
     ttl_seconds: int,
-) -> tuple[bool, Optional[Dict[str, Any]]]:
+) -> tuple[bool, dict[str, Any] | None]:
     """获取分布式锁（基于同一 SQLite 数据库），用于避免并发刷新冲突"""
     now_ts = time.time()
     expires_at = now_ts + ttl_seconds

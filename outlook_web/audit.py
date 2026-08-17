@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from flask import g
 
@@ -8,7 +8,7 @@ from outlook_web.db import get_db
 from outlook_web.security.auth import get_client_ip
 
 
-def log_audit(action: str, resource_type: str, resource_id: str = None, details: str = None):
+def log_audit(action: str, resource_type: str, resource_id: str | None = None, details: str | None = None):
     """
     记录审计日志
     :param action: 操作类型（如 'export', 'delete', 'update'）
@@ -43,7 +43,7 @@ def query_audit_logs(
     offset: int,
     action: str,
     resource_type: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     db = get_db()
     limit = max(1, min(limit or 50, 200))
     offset = max(0, offset or 0)
@@ -51,8 +51,8 @@ def query_audit_logs(
     action = (action or "").strip()
     resource_type = (resource_type or "").strip()
 
-    where_clauses: List[str] = []
-    params: List[Any] = []
+    where_clauses: list[str] = []
+    params: list[Any] = []
     if action:
         where_clauses.append("action = ?")
         params.append(action)
@@ -76,9 +76,9 @@ def query_audit_logs(
         params + [limit, offset],
     ).fetchall()
 
-    logs: List[Dict[str, Any]] = []
+    logs: list[dict[str, Any]] = []
     for r in rows:
-        details_text: Optional[str] = r["details"] or ""
+        details_text: str | None = r["details"] or ""
         if isinstance(details_text, str) and len(details_text) > 800:
             details_text = details_text[:800] + "..."
         logs.append(

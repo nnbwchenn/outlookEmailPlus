@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from outlook_web.db import get_db
 
@@ -76,7 +76,7 @@ def normalize_group_verification_policy(
     verification_code_regex: Any = "",
     verification_ai_enabled: Any = 0,
     verification_ai_model: Any = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """标准化并校验分组验证码提取策略。"""
 
     normalized_length = _validate_code_length(_normalize_str(verification_code_length) or "6-6")
@@ -94,7 +94,7 @@ def normalize_group_verification_policy(
     }
 
 
-def load_groups() -> List[Dict]:
+def load_groups() -> list[dict]:
     """加载所有分组"""
     db = get_db()
     cursor = db.execute("""
@@ -105,7 +105,7 @@ def load_groups() -> List[Dict]:
     return [dict(row) for row in rows]
 
 
-def get_group_by_id(group_id: int) -> Optional[Dict]:
+def get_group_by_id(group_id: int) -> dict | None:
     """根据 ID 获取分组"""
     db = get_db()
     cursor = db.execute("SELECT * FROM groups WHERE id = ?", (group_id,))
@@ -122,7 +122,7 @@ def add_group(
     verification_code_regex: Any = "",
     verification_ai_enabled: Any = 0,
     verification_ai_model: Any = "",
-) -> Optional[int]:
+) -> int | None:
     """添加分组"""
     db = get_db()
     policy = normalize_group_verification_policy(
@@ -258,7 +258,7 @@ def get_group_account_count(group_id: int) -> int:
     return row["count"] if row else 0
 
 
-def load_groups_with_account_count() -> List[Dict]:
+def load_groups_with_account_count() -> list[dict]:
     """加载所有分组并附带各分组的邮箱数量（单次 SQL 聚合，消除 N+1）"""
     db = get_db()
     cursor = db.execute("""
@@ -276,7 +276,7 @@ def load_groups_with_account_count() -> List[Dict]:
     return [dict(row) for row in rows]
 
 
-def get_group_by_name(name: str) -> Optional[Dict]:
+def get_group_by_name(name: str) -> dict | None:
     """按名称查找分组（精确匹配，不区分大小写）"""
     db = get_db()
     cursor = db.execute("SELECT * FROM groups WHERE LOWER(name) = LOWER(?)", (name,))
@@ -288,11 +288,11 @@ def resolve_group_verification_policy(
     *,
     request_code_length: Any = None,
     request_code_regex: Any = None,
-    group: Optional[Dict[str, Any]] = None,
+    group: dict[str, Any] | None = None,
     default_code_length: str = "6-6",
     apply_default: bool = True,
     request_error_code: str = "INVALID_PARAM",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     统一策略解析：request > group > default；group 内 regex > length。
     返回字段：code_length/code_regex/ai_enabled/ai_model。

@@ -3,7 +3,7 @@ from __future__ import annotations
 import html
 import json
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 from urllib.parse import quote
 
 from flask import Response, jsonify, request

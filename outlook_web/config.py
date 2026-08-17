@@ -98,10 +98,10 @@ def get_oauth_redirect_uri_default() -> str:
 
 def get_oauth_scope_default() -> str:
     """OAuth 工具默认 Scope（环境变量层）。"""
-    default_scope = "offline_access https://outlook.office.com/IMAP.AccessAsUser.All"
+    default_scope = "Mail.ReadWrite offline_access"
     return _getenv("OAUTH_SCOPE", default_scope) or default_scope
 
 
 def get_oauth_tenant_default() -> str:
     """OAuth 工具默认 Tenant（环境变量层）。"""
-    return _getenv("OAUTH_TENANT", "consumers") or "consumers"
+    return _getenv("OAUTH_TENANT", "common") or "common"

@@ -3,7 +3,6 @@ from __future__ import annotations
 from flask import Blueprint
 
 from outlook_web.controllers import system as system_controller
-from outlook_web.security.auth import login_required
 
 
 def create_blueprint() -> Blueprint:

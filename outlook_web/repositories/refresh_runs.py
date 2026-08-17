@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from typing import Optional
 
 
 def create_refresh_run(
     conn: sqlite3.Connection,
     trigger_source: str,
     trace_id: str,
-    requested_by_ip: str = None,
-    requested_by_user_agent: str = None,
+    requested_by_ip: str | None = None,
+    requested_by_user_agent: str | None = None,
     total: int = 0,
 ) -> str:
     run_id = uuid.uuid4().hex
@@ -44,7 +43,7 @@ def finish_refresh_run(
     total: int,
     success_count: int,
     failed_count: int,
-    message: str = None,
+    message: str | None = None,
 ):
     conn.execute(
         """

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import copy
-import os
-from typing import Optional
 
 _APP_INSTANCE = None
 
 
-def create_app(*, autostart_scheduler: Optional[bool] = None):
+def create_app(*, autostart_scheduler: bool | None = None):
     """
     应用工厂（迁移期实现）：
     - 统一装配入口，便于测试与后续 Blueprint/分层拆分

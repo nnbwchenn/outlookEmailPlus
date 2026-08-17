@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any
 
 from flask import current_app, g, jsonify
 
@@ -172,7 +172,7 @@ def generate_trace_id() -> str:
     return uuid.uuid4().hex
 
 
-def sanitize_error_details(details: Optional[str]) -> str:
+def sanitize_error_details(details: str | None) -> str:
     if not details:
         return ""
     sanitized = details
@@ -192,7 +192,7 @@ def sanitize_error_details(details: Optional[str]) -> str:
     return sanitized
 
 
-def resolve_message_en(code: Optional[str], status: int = 500) -> str:
+def resolve_message_en(code: str | None, status: int = 500) -> str:
     if code:
         mapped = ERROR_MESSAGE_EN_MAP.get(str(code).strip())
         if mapped:
@@ -200,7 +200,7 @@ def resolve_message_en(code: Optional[str], status: int = 500) -> str:
     return STATUS_MESSAGE_EN_MAP.get(status, "Request failed")
 
 
-def resolve_message(code: Optional[str], default_message: str = "请求失败") -> str:
+def resolve_message(code: str | None, default_message: str = "请求失败") -> str:
     if code:
         mapped = ERROR_MESSAGE_MAP.get(str(code).strip())
         if mapped:
@@ -214,9 +214,9 @@ def build_error_payload(
     err_type: str = "Error",
     status: int = 500,
     details: Any = None,
-    trace_id: Optional[str] = None,
-    message_en: Optional[str] = None,
-) -> Dict[str, Any]:
+    trace_id: str | None = None,
+    message_en: str | None = None,
+) -> dict[str, Any]:
     if not isinstance(message, str):
         message = str(message)
     sanitized_message = sanitize_error_details(message) if message else ""
@@ -291,8 +291,8 @@ def build_error_response(
     err_type: str = "Error",
     status: int = 400,
     details: Any = None,
-    trace_id: Optional[str] = None,
-    extra: Optional[Dict[str, Any]] = None,
+    trace_id: str | None = None,
+    extra: dict[str, Any] | None = None,
 ):
     payload = build_error_payload(
         code=code,
@@ -303,7 +303,7 @@ def build_error_response(
         trace_id=trace_id,
         message_en=message_en,
     )
-    body: Dict[str, Any] = {
+    body: dict[str, Any] = {
         "success": False,
         "error": payload,
         "trace_id": payload["trace_id"],

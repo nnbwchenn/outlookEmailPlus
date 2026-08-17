@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from flask import Blueprint
 
 from outlook_web.controllers import external_pool as external_pool_controller
 
 
-def create_blueprint(csrf_exempt: Optional[Callable] = None) -> Blueprint:
+def create_blueprint(csrf_exempt: Callable | None = None) -> Blueprint:
     """创建 external_pool Blueprint。
 
     外部池接口面向 worker/合作方直接调用，POST 请求不应被浏览器态 CSRF 校验拦截。

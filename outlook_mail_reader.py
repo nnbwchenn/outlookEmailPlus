@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Outlook 邮件读取测试工具
 使用三种方式读取 Outlook 邮箱邮件：
@@ -11,7 +10,7 @@ Outlook 邮件读取测试工具
 import email
 import imaplib
 from email.header import decode_header
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -67,7 +66,7 @@ def decode_header_value(header_value: str) -> str:
         return str(header_value) if header_value else ""
 
 
-def print_email_info(emails: List[Any], method_name: str):
+def print_email_info(emails: list[Any], method_name: str):
     """打印邮件信息"""
     if not emails:
         print(f"❌ {method_name}: 未获取到邮件")
@@ -102,7 +101,7 @@ def print_email_info(emails: List[Any], method_name: str):
 # ==================== 方式1: 旧版 IMAP 方式 ====================
 
 
-def get_access_token_old(account: str, client_id: str, refresh_token: str) -> Optional[str]:
+def get_access_token_old(account: str, client_id: str, refresh_token: str) -> str | None:
     """
     旧版方式获取 access_token
     使用 login.live.com 端点
@@ -135,7 +134,7 @@ def get_access_token_old(account: str, client_id: str, refresh_token: str) -> Op
         return None
 
 
-def read_emails_imap_old(account: str, client_id: str, refresh_token: str, top: int = 10) -> Optional[List]:
+def read_emails_imap_old(account: str, client_id: str, refresh_token: str, top: int = 10) -> list | None:
     """
     方式1: 旧版 IMAP 方式读取邮件
     使用 outlook.office365.com 服务器
@@ -201,7 +200,7 @@ def read_emails_imap_old(account: str, client_id: str, refresh_token: str, top: 
 # ==================== 方式2: 新版 IMAP 方式 ====================
 
 
-def get_access_token_imap(client_id: str, refresh_token: str) -> Optional[str]:
+def get_access_token_imap(client_id: str, refresh_token: str) -> str | None:
     """
     新版方式获取 IMAP access_token
     使用 login.microsoftonline.com/consumers 端点，IMAP scope
@@ -242,7 +241,7 @@ def get_access_token_imap(client_id: str, refresh_token: str) -> Optional[str]:
         return None
 
 
-def read_emails_imap_new(account: str, client_id: str, refresh_token: str, top: int = 10) -> Optional[List]:
+def read_emails_imap_new(account: str, client_id: str, refresh_token: str, top: int = 10) -> list | None:
     """
     方式2: 新版 IMAP 方式读取邮件
     使用 outlook.live.com 服务器
@@ -261,7 +260,7 @@ def read_emails_imap_new(account: str, client_id: str, refresh_token: str, top: 
         connection = imaplib.IMAP4_SSL(IMAP_SERVER_NEW, IMAP_PORT)
 
         # 3. XOAUTH2 认证
-        auth_string = f"user={account}\1auth=Bearer {access_token}\1\1".encode("utf-8")
+        auth_string = f"user={account}\1auth=Bearer {access_token}\1\1".encode()
         connection.authenticate("XOAUTH2", lambda x: auth_string)
         print("  ✅ IMAP 认证成功")
 
@@ -308,7 +307,7 @@ def read_emails_imap_new(account: str, client_id: str, refresh_token: str, top: 
 # ==================== 方式3: Graph API 方式 ====================
 
 
-def get_access_token_graph(client_id: str, refresh_token: str) -> Optional[str]:
+def get_access_token_graph(client_id: str, refresh_token: str) -> str | None:
     """
     Graph API 方式获取 access_token
     使用 login.microsoftonline.com/common 端点，Graph scope
@@ -349,7 +348,7 @@ def get_access_token_graph(client_id: str, refresh_token: str) -> Optional[str]:
         return None
 
 
-def read_emails_graph(client_id: str, refresh_token: str, top: int = 10) -> Optional[List[Dict]]:
+def read_emails_graph(client_id: str, refresh_token: str, top: int = 10) -> list[dict] | None:
     """
     方式3: Graph API 方式读取邮件
     使用 Microsoft Graph API

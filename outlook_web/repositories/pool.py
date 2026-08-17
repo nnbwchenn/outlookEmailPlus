@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +17,7 @@ logger = logging.getLogger(__name__)
 #   - 同 caller+project 只防 success，不防失败/release/expire（FD §2.2）
 #   - success_count > 0 是 claim 排除的唯一门控（TDD §4.1 N-02）
 
-RESULT_TO_POOL_STATUS: Dict[str, str] = {
+RESULT_TO_POOL_STATUS: dict[str, str] = {
     "success": "used",
     "verification_timeout": "cooldown",
     "provider_blocked": "frozen",
@@ -40,7 +38,7 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _parse_claimed_by(claimed_by: Optional[str]) -> tuple[str, str]:
+def _parse_claimed_by(claimed_by: str | None) -> tuple[str, str]:
     """从 claimed_by 字段解析 caller_id 和 task_id（兼容旧格式）。"""
     if not claimed_by:
         return "", ""
@@ -57,7 +55,7 @@ def insert_claimed_account(
     lease_seconds: int,
     provider: str,
     account_type: str = "outlook",
-    project_key: Optional[str] = None,
+    project_key: str | None = None,
     claim_log_detail: str = "动态创建",
 ) -> dict:
     """插入一个新账号并直接标记为 claimed（供 Service 层动态创建邮箱后写入池）。
@@ -175,13 +173,13 @@ def claim_atomic(
     caller_id: str,
     task_id: str,
     lease_seconds: int,
-    provider: Optional[str] = None,
-    group_id: Optional[int] = None,
-    tags: Optional[List[str]] = None,
-    exclude_recent_minutes: Optional[int] = None,
-    project_key: Optional[str] = None,
-    email_domain: Optional[str] = None,
-) -> Optional[dict]:
+    provider: str | None = None,
+    group_id: int | None = None,
+    tags: list[str] | None = None,
+    exclude_recent_minutes: int | None = None,
+    project_key: str | None = None,
+    email_domain: str | None = None,
+) -> dict | None:
     sql = """
         SELECT a.* FROM accounts a
         WHERE a.pool_status = 'available'
@@ -304,7 +302,7 @@ def claim_atomic(
 def get_claim_context(
     conn: sqlite3.Connection,
     claim_token: str,
-) -> Optional[dict]:
+) -> dict | None:
     """
     根据 claim_token 查询 claimed_at 时间戳（用作邮件读取的 baseline）。
     返回包含 account_id / email / claimed_at / email_domain 的 dict，或 None。
@@ -335,7 +333,7 @@ def append_claim_read_context(
     claim_token: str,
     caller_id: str,
     task_id: str,
-    detail: Optional[str] = None,
+    detail: str | None = None,
 ) -> None:
     """
     追加一条 'read' 动作的 claim log（用于记录邮件读取行为）。
@@ -360,7 +358,7 @@ def release(
     claim_token: str,
     caller_id: str,
     task_id: str,
-    reason: Optional[str],
+    reason: str | None,
 ) -> None:
     """释放已领取的账号，恢复为 available。
 
@@ -403,10 +401,10 @@ def complete(
     caller_id: str,
     task_id: str,
     result: str,
-    detail: Optional[str],
+    detail: str | None,
     *,
-    claimed_project_key: Optional[str] = None,
-    enable_project_reuse: Optional[bool] = None,
+    claimed_project_key: str | None = None,
+    enable_project_reuse: bool | None = None,
 ) -> str:
     """完成领取流程，根据结果更新池状态。
 

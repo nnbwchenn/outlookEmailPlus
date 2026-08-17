@@ -15,7 +15,6 @@ import os
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
 
 from outlook_web import config
 from outlook_web.db import create_sqlite_connection
@@ -324,7 +323,7 @@ def configure_scheduler_jobs(scheduler, app, test_refresh_token) -> None:
             print(f"✓ 定时任务已配置：Cron 表达式 '{cron_expr}'")
             return
         except Exception as e:
-            print(f"⚠ Cron 配置无效：{str(e)}，回退到默认配置")
+            print(f"⚠ Cron 配置无效：{e!s}，回退到默认配置")
 
     scheduler.add_job(
         func=scheduled_task,
@@ -364,7 +363,7 @@ def init_scheduler(app, test_refresh_token):
         print("  安装命令：pip install APScheduler>=3.10.0")
         return None
     except Exception as e:
-        print(f"⚠ 定时任务初始化失败：{str(e)}")
+        print(f"⚠ 定时任务初始化失败：{e!s}")
         return None
 
 
@@ -452,7 +451,7 @@ def scheduled_refresh_task(app, test_refresh_token):
         ttl_seconds = max(60 * 60 * 2, estimated)
         ttl_seconds = min(ttl_seconds, 60 * 60 * 24)
 
-        ok, lock_info = acquire_distributed_lock(conn, REFRESH_LOCK_NAME, lock_owner_id, ttl_seconds)
+        ok, _lock_info = acquire_distributed_lock(conn, REFRESH_LOCK_NAME, lock_owner_id, ttl_seconds)
         if not ok:
             finish_refresh_run(conn, run_id, "skipped", total, 0, 0, "刷新任务冲突：已有刷新在执行")
             return
@@ -472,7 +471,7 @@ def scheduled_refresh_task(app, test_refresh_token):
                 refresh_token = decrypt_data(encrypted_refresh_token) if encrypted_refresh_token else encrypted_refresh_token
             except Exception as e:
                 failed_count += 1
-                error_msg = f"解密 token 失败: {str(e)}"
+                error_msg = f"解密 token 失败: {e!s}"
                 try:
                     conn.execute(
                         """
@@ -587,10 +586,7 @@ def should_autostart_scheduler() -> bool:
         return False
 
     # Flask CLI (flask run) + reloader：父进程不启动
-    if config.env_true("FLASK_RUN_FROM_CLI", False) and not config.env_true("WERKZEUG_RUN_MAIN", False):
-        return False
-
-    return True
+    return not (config.env_true("FLASK_RUN_FROM_CLI", False) and not config.env_true("WERKZEUG_RUN_MAIN", False))
 
 
 def get_scheduler_instance():

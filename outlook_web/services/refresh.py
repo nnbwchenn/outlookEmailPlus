@@ -4,8 +4,9 @@ import json
 import random
 import time
 import uuid
+from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Any
 
 from outlook_web.db import create_sqlite_connection
 from outlook_web.errors import build_error_payload, generate_trace_id
@@ -37,9 +38,9 @@ REFRESHABLE_OUTLOOK_ACCOUNT_SELECT = f"""
 
 
 def is_refreshable_outlook_account(
-    account_type: Optional[str],
+    account_type: str | None,
     *,
-    provider: Optional[str] = None,
+    provider: str | None = None,
 ) -> bool:
     """仅 Outlook（以及历史空 account_type）允许进入 OAuth token 刷新链路。"""
     if account_type is None:
@@ -51,7 +52,7 @@ INVALID_TOKEN_FAILED_LIST_LIMIT = 200
 INVALID_TOKEN_ERROR_KEYWORDS = ("invalid_grant", "aadsts70000")
 
 
-def _classify_refresh_failure(error_message: Optional[str]) -> Dict[str, Any]:
+def _classify_refresh_failure(error_message: str | None) -> dict[str, Any]:
     """统一判定刷新失败是否属于失效 token（方案 C 首版口径）。"""
     normalized = str(error_message or "").strip().lower()
     is_invalid_token = any(keyword in normalized for keyword in INVALID_TOKEN_ERROR_KEYWORDS)
@@ -71,10 +72,10 @@ def _classify_refresh_failure(error_message: Optional[str]) -> Dict[str, Any]:
 
 def _record_invalid_token_failure(
     *,
-    invalid_token_failed_list: List[Dict[str, Any]],
+    invalid_token_failed_list: list[dict[str, Any]],
     account_id: int,
     account_email: str,
-    error_message: Optional[str],
+    error_message: str | None,
 ) -> bool:
     classified = _classify_refresh_failure(error_message)
     if not classified.get("is_invalid_token"):
@@ -115,11 +116,11 @@ def compute_refresh_lock_ttl_seconds(total: int, delay_seconds: int) -> int:
 
 def stream_refresh_all_accounts(
     *,
-    trace_id: Optional[str],
+    trace_id: str | None,
     requested_by_ip: str,
     requested_by_user_agent: str,
     lock_name: str,
-    test_refresh_token: Callable[[str, str, Optional[str]], Tuple[bool, Optional[str], Optional[str]]],
+    test_refresh_token: Callable[[str, str, str | None], tuple[bool, str | None, str | None]],
 ) -> Iterator[str]:
     """刷新所有账号 token（SSE 流式输出）"""
     conn = create_sqlite_connection()
@@ -170,9 +171,9 @@ def stream_refresh_all_accounts(
 
         success_count = 0
         failed_count = 0
-        failed_list: List[Dict[str, Any]] = []
+        failed_list: list[dict[str, Any]] = []
         invalid_token_failed_count = 0
-        invalid_token_failed_list: List[Dict[str, Any]] = []
+        invalid_token_failed_list: list[dict[str, Any]] = []
 
         yield (
             "data: "
@@ -200,7 +201,7 @@ def stream_refresh_all_accounts(
                 refresh_token = decrypt_data(encrypted_refresh_token) if encrypted_refresh_token else encrypted_refresh_token
             except Exception as e:
                 failed_count += 1
-                error_msg = f"解密 token 失败: {str(e)}"
+                error_msg = f"解密 token 失败: {e!s}"
                 failed_list.append({"id": account_id, "email": account_email, "error": error_msg})
                 if _record_invalid_token_failure(
                     invalid_token_failed_list=invalid_token_failed_list,
@@ -374,11 +375,11 @@ def stream_trigger_scheduled_refresh(
     force: bool,
     refresh_interval_days: int,
     use_cron: bool,
-    trace_id: Optional[str],
+    trace_id: str | None,
     requested_by_ip: str,
     requested_by_user_agent: str,
     lock_name: str,
-    test_refresh_token: Callable[[str, str, Optional[str]], Tuple[bool, Optional[str], Optional[str]]],
+    test_refresh_token: Callable[[str, str, str | None], tuple[bool, str | None, str | None]],
 ) -> Iterator[str]:
     """手动触发定时刷新（SSE 流式输出）"""
     conn = create_sqlite_connection()
@@ -474,9 +475,9 @@ def stream_trigger_scheduled_refresh(
 
         success_count = 0
         failed_count = 0
-        failed_list: List[Dict[str, Any]] = []
+        failed_list: list[dict[str, Any]] = []
         invalid_token_failed_count = 0
-        invalid_token_failed_list: List[Dict[str, Any]] = []
+        invalid_token_failed_list: list[dict[str, Any]] = []
 
         yield (
             "data: "
@@ -504,7 +505,7 @@ def stream_trigger_scheduled_refresh(
                 refresh_token = decrypt_data(encrypted_refresh_token) if encrypted_refresh_token else encrypted_refresh_token
             except Exception as e:
                 failed_count += 1
-                error_msg = f"解密 token 失败: {str(e)}"
+                error_msg = f"解密 token 失败: {e!s}"
                 failed_list.append({"id": account_id, "email": account_email, "error": error_msg})
                 if _record_invalid_token_failure(
                     invalid_token_failed_list=invalid_token_failed_list,
@@ -669,12 +670,12 @@ def stream_trigger_scheduled_refresh(
 
 def stream_refresh_selected_accounts(
     *,
-    account_ids: List[int],
-    trace_id: Optional[str],
+    account_ids: list[int],
+    trace_id: str | None,
     requested_by_ip: str,
     requested_by_user_agent: str,
     lock_name: str,
-    test_refresh_token: Callable[[str, str, Optional[str]], Tuple[bool, Optional[str], Optional[str]]],
+    test_refresh_token: Callable[[str, str, str | None], tuple[bool, str | None, str | None]],
 ) -> Iterator[str]:
     """刷新指定账号列表的 token（SSE 流式输出）"""
     conn = create_sqlite_connection()
@@ -738,9 +739,9 @@ def stream_refresh_selected_accounts(
 
         success_count = 0
         failed_count = 0
-        failed_list: List[Dict[str, Any]] = []
+        failed_list: list[dict[str, Any]] = []
         invalid_token_failed_count = 0
-        invalid_token_failed_list: List[Dict[str, Any]] = []
+        invalid_token_failed_list: list[dict[str, Any]] = []
 
         yield (
             "data: "
@@ -769,7 +770,7 @@ def stream_refresh_selected_accounts(
                 refresh_token = decrypt_data(encrypted_refresh_token) if encrypted_refresh_token else encrypted_refresh_token
             except Exception as e:
                 failed_count += 1
-                error_msg = f"解密 token 失败: {str(e)}"
+                error_msg = f"解密 token 失败: {e!s}"
                 failed_list.append({"id": account_id, "email": account_email, "error": error_msg})
                 if _record_invalid_token_failure(
                     invalid_token_failed_list=invalid_token_failed_list,
@@ -989,12 +990,12 @@ def stream_refresh_selected_accounts(
 def refresh_failed_accounts(
     *,
     db,
-    trace_id: Optional[str],
+    trace_id: str | None,
     requested_by_ip: str,
     requested_by_user_agent: str,
     lock_name: str,
-    test_refresh_token: Callable[[str, str, Optional[str]], Tuple[bool, Optional[str], Optional[str]]],
-) -> Tuple[Dict[str, Any], int]:
+    test_refresh_token: Callable[[str, str, str | None], tuple[bool, str | None, str | None]],
+) -> tuple[dict[str, Any], int]:
     """重试所有失败的账号（非流式）"""
     lock_owner_id = uuid.uuid4().hex
 
@@ -1040,9 +1041,9 @@ def refresh_failed_accounts(
 
     success_count = 0
     failed_count = 0
-    failed_list: List[Dict[str, Any]] = []
+    failed_list: list[dict[str, Any]] = []
     invalid_token_failed_count = 0
-    invalid_token_failed_list: List[Dict[str, Any]] = []
+    invalid_token_failed_list: list[dict[str, Any]] = []
 
     try:
         for account in accounts:
@@ -1065,7 +1066,7 @@ def refresh_failed_accounts(
                 refresh_token = decrypt_data(encrypted_refresh_token) if encrypted_refresh_token else encrypted_refresh_token
             except Exception as e:
                 failed_count += 1
-                error_msg = f"解密 token 失败: {str(e)}"
+                error_msg = f"解密 token 失败: {e!s}"
                 failed_list.append({"id": account_id, "email": account_email, "error": error_msg})
                 if _record_invalid_token_failure(
                     invalid_token_failed_list=invalid_token_failed_list,

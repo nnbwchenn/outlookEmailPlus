@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import secrets
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Any, Iterable
+from typing import Any
 
 from outlook_web.db import get_db
 from outlook_web.security.crypto import decrypt_data, encrypt_data

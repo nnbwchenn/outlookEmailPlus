@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from outlook_web.db import create_sqlite_connection
 from outlook_web.repositories import pool as pool_repo
@@ -31,7 +30,7 @@ VALID_RESULTS = set(pool_repo.RESULT_TO_POOL_STATUS.keys())
 VALID_PROVIDERS = {"outlook", "imap", "custom"}
 
 
-def _validate_provider(provider: Optional[str]) -> Optional[str]:
+def _validate_provider(provider: str | None) -> str | None:
     """
     校验 provider 参数。
 
@@ -82,7 +81,7 @@ def _validate_lease_seconds(lease_seconds: int, max_lease: int = 3600) -> None:
         raise PoolServiceError(f"lease_seconds 不能超过 {max_lease} 秒", "lease_seconds_too_large")
 
 
-def _validate_project_key(project_key: Optional[str]) -> Optional[str]:
+def _validate_project_key(project_key: str | None) -> str | None:
     if project_key is None:
         return None
     pk = project_key.strip()
@@ -93,7 +92,7 @@ def _validate_project_key(project_key: Optional[str]) -> Optional[str]:
     return pk
 
 
-def _validate_email_domain(email_domain: Optional[str]) -> Optional[str]:
+def _validate_email_domain(email_domain: str | None) -> str | None:
     if email_domain is None:
         return None
     d = email_domain.strip().lower()
@@ -121,24 +120,22 @@ def _read_settings_via_conn(conn) -> dict:
 
 def _is_project_reuse_eligible_account(
     *,
-    claimed_project_key: Optional[str],
+    claimed_project_key: str | None,
 ) -> bool:
     """判定账号是否适用项目维度成功复用路径 (FD §2.1)。
 
     门控：claimed_project_key 非空 — 必须在 claim 时显式传入
     """
-    if not claimed_project_key:
-        return False
-    return True
+    return claimed_project_key
 
 
 def claim_random(
     *,
     caller_id: str,
     task_id: str,
-    provider: Optional[str] = None,
-    project_key: Optional[str] = None,
-    email_domain: Optional[str] = None,
+    provider: str | None = None,
+    project_key: str | None = None,
+    email_domain: str | None = None,
 ) -> dict:
     _validate_caller_id(caller_id)
     _validate_task_id(task_id)
@@ -175,7 +172,7 @@ def claim_random(
 
 
 def _validate_claim_ownership(
-    row: Optional[dict],
+    row: dict | None,
     *,
     action: str,
     claim_token: str,
@@ -207,7 +204,7 @@ def release_claim(
     claim_token: str,
     caller_id: str,
     task_id: str,
-    reason: Optional[str] = None,
+    reason: str | None = None,
 ) -> None:
     """释放已领取的邮箱账号（不计入成功/失败统计，直接回 available）。"""
     _validate_caller_id(caller_id)
@@ -243,7 +240,7 @@ def complete_claim(
     caller_id: str,
     task_id: str,
     result: str,
-    detail: Optional[str] = None,
+    detail: str | None = None,
 ) -> str:
     """
     标记领取结果并驱动状态机流转。
@@ -307,7 +304,7 @@ def complete_claim(
         conn.close()
 
 
-def get_claim_context(*, claim_token: str) -> Optional[dict]:
+def get_claim_context(*, claim_token: str) -> dict | None:
     """
     根据 claim_token 查询领取上下文（email / claimed_at / email_domain 等）。
     返回 dict 或 None（token 不存在时）。
@@ -327,7 +324,7 @@ def append_claim_read_context(
     claim_token: str,
     caller_id: str,
     task_id: str,
-    detail: Optional[str] = None,
+    detail: str | None = None,
 ) -> None:
     """
     追加一条读取上下文日志（claim 邮箱被用于邮件读取时记录）。

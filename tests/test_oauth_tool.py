@@ -46,7 +46,7 @@ class OAuthToolTestBase(unittest.TestCase):
             "client_secret": "",
             "scope": "offline_access https://outlook.office.com/IMAP.AccessAsUser.All",
             "redirect_uri": "http://localhost:5000/token-tool/callback",
-            "tenant": "consumers",
+            "tenant": "common",
             "prompt_consent": False,
             **overrides,
         }
@@ -290,7 +290,7 @@ class OAuthToolErrorGuidanceTests(OAuthToolTestBase):
 
         guidance = map_error_guidance("unauthorized_client")
         self.assertIsInstance(guidance, str)
-        self.assertIn("个人 Microsoft 账号", guidance)
+        self.assertIn("Thunderbird", guidance)
         self.assertIn("公共客户端流", guidance)
 
     def test_map_invalid_client(self):
@@ -481,7 +481,7 @@ class OAuthToolApiPrepareTests(OAuthToolTestBase):
                 "/api/token-tool/prepare",
                 json={
                     "client_id": "test-cid",
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
@@ -502,7 +502,7 @@ class OAuthToolApiPrepareTests(OAuthToolTestBase):
                 "/api/token-tool/prepare",
                 json={
                     "client_id": "cid",
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "https://graph.microsoft.com/.default https://graph.microsoft.com/Mail.Read",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
@@ -519,7 +519,7 @@ class OAuthToolApiPrepareTests(OAuthToolTestBase):
                 json={
                     "client_id": "cid",
                     "client_secret": "super-secret",
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
@@ -527,34 +527,41 @@ class OAuthToolApiPrepareTests(OAuthToolTestBase):
             self.assertEqual(resp.status_code, 400)
             self.assertIn("不支持 Client Secret", resp.get_json().get("message", ""))
 
-    def test_prepare_rejects_non_consumers_tenant(self):
+    def test_prepare_rejects_non_common_tenant(self):
         with self.app.test_client() as client:
             self._login(client)
             resp = client.post(
                 "/api/token-tool/prepare",
                 json={
                     "client_id": "cid",
-                    "tenant": "common",
+                    "tenant": "organizations",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
             )
             self.assertEqual(resp.status_code, 400)
-            self.assertIn("tenant=consumers", resp.get_json().get("message", ""))
+            self.assertIn("tenant=common", resp.get_json().get("message", ""))
 
-    def test_prepare_missing_client_id(self):
+    def test_prepare_defaults_to_thunderbird_client_id(self):
+        from urllib.parse import parse_qs, urlparse
+
         with self.app.test_client() as client:
             self._login(client)
             resp = client.post(
                 "/api/token-tool/prepare",
                 json={
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
             )
-            self.assertEqual(resp.status_code, 400)
-            self.assertEqual(resp.get_json().get("code"), "OAUTH_CONFIG_INVALID")
+            self.assertEqual(resp.status_code, 200)
+            authorize_url = resp.get_json().get("data", {}).get("authorize_url", "")
+            qs = parse_qs(urlparse(authorize_url).query)
+            self.assertEqual(
+                qs.get("client_id", [""])[0],
+                "9e5f94bc-e8a4-4e73-b8be-63364c29d753",
+            )
 
     def test_prepare_requires_login(self):
         with self.app.test_client() as client:
@@ -562,7 +569,7 @@ class OAuthToolApiPrepareTests(OAuthToolTestBase):
                 "/api/token-tool/prepare",
                 json={
                     "client_id": "cid",
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
@@ -580,7 +587,7 @@ class OAuthToolApiPrepareTests(OAuthToolTestBase):
                 "/api/token-tool/prepare",
                 json={
                     "client_id": "test-cid",
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
@@ -602,7 +609,7 @@ class OAuthToolApiExchangeTests(OAuthToolTestBase):
                 "/api/token-tool/prepare",
                 json={
                     "client_id": "cid",
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
@@ -641,7 +648,7 @@ class OAuthToolApiExchangeTests(OAuthToolTestBase):
                 "/api/token-tool/prepare",
                 json={
                     "client_id": "cid",
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
@@ -670,7 +677,7 @@ class OAuthToolApiExchangeTests(OAuthToolTestBase):
                 "/api/token-tool/prepare",
                 json={
                     "client_id": "cid",
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
@@ -721,7 +728,7 @@ class OAuthToolApiConfigTests(OAuthToolTestBase):
             data = load_resp.get_json()
             self.assertEqual(data.get("data", {}).get("client_id"), "my-cid-123")
             self.assertEqual(data.get("data", {}).get("client_secret"), "")
-            self.assertEqual(data.get("data", {}).get("tenant"), "consumers")
+            self.assertEqual(data.get("data", {}).get("tenant"), "common")
 
     def test_config_save_rejects_client_secret(self):
         with self.app.test_client() as client:
@@ -730,12 +737,12 @@ class OAuthToolApiConfigTests(OAuthToolTestBase):
             self.assertEqual(resp.status_code, 400)
             self.assertIn("不支持 Client Secret", resp.get_json().get("message", ""))
 
-    def test_config_save_rejects_non_consumers_tenant(self):
+    def test_config_save_rejects_non_common_tenant(self):
         with self.app.test_client() as client:
             self._login(client)
-            resp = self._save_oauth_config(client, tenant="common")
+            resp = self._save_oauth_config(client, tenant="organizations")
             self.assertEqual(resp.status_code, 400)
-            self.assertIn("tenant=consumers", resp.get_json().get("message", ""))
+            self.assertIn("tenant=common", resp.get_json().get("message", ""))
 
     def test_config_load_ignores_legacy_secret_and_tenant(self):
         with self.app.app_context():
@@ -749,9 +756,9 @@ class OAuthToolApiConfigTests(OAuthToolTestBase):
             load_resp = client.get("/api/token-tool/config")
             self.assertEqual(load_resp.status_code, 200)
             self.assertEqual(load_resp.get_json().get("data", {}).get("client_secret"), "")
-            self.assertEqual(load_resp.get_json().get("data", {}).get("tenant"), "consumers")
+            self.assertEqual(load_resp.get_json().get("data", {}).get("tenant"), "common")
 
-    def test_config_load_migrates_legacy_graph_scope_to_imap_default(self):
+    def test_config_load_migrates_legacy_graph_scope_to_default(self):
         with self.app.app_context():
             from outlook_web.repositories import settings as settings_repo
 
@@ -766,7 +773,7 @@ class OAuthToolApiConfigTests(OAuthToolTestBase):
             self.assertEqual(load_resp.status_code, 200)
             self.assertEqual(
                 load_resp.get_json().get("data", {}).get("scope"),
-                "offline_access https://outlook.office.com/IMAP.AccessAsUser.All",
+                "Mail.ReadWrite offline_access",
             )
 
     @patch.dict("os.environ", {"OAUTH_CLIENT_ID": "env-cid-123"}, clear=False)
@@ -776,16 +783,16 @@ class OAuthToolApiConfigTests(OAuthToolTestBase):
             load_resp = client.get("/api/token-tool/config")
             self.assertEqual(load_resp.status_code, 200)
             self.assertEqual(load_resp.get_json().get("data", {}).get("client_id"), "env-cid-123")
-            self.assertEqual(load_resp.get_json().get("data", {}).get("tenant"), "consumers")
+            self.assertEqual(load_resp.get_json().get("data", {}).get("tenant"), "common")
 
-    def test_config_defaults_to_imap_compat_scope(self):
+    def test_config_defaults_to_graph_compat_scope(self):
         with self.app.test_client() as client:
             self._login(client)
             load_resp = client.get("/api/token-tool/config")
             self.assertEqual(load_resp.status_code, 200)
             self.assertEqual(
                 load_resp.get_json().get("data", {}).get("scope"),
-                "offline_access https://outlook.office.com/IMAP.AccessAsUser.All",
+                "Mail.ReadWrite offline_access",
             )
 
     def test_config_requires_login(self):
@@ -891,10 +898,10 @@ class OAuthToolApiSaveTests(OAuthToolTestBase):
             self.assertEqual(resp.status_code, 200)
 
         _args, kwargs = mock_test_rt.call_args
-        self.assertEqual(kwargs.get("tenant"), "consumers")
+        self.assertEqual(kwargs.get("tenant"), "common")
         self.assertEqual(
             kwargs.get("scope"),
-            "offline_access https://outlook.office.com/IMAP.AccessAsUser.All",
+            "Mail.ReadWrite offline_access",
         )
 
     @patch("outlook_web.services.graph.test_refresh_token_with_rotation")
@@ -915,7 +922,7 @@ class OAuthToolApiSaveTests(OAuthToolTestBase):
             self.assertEqual(resp.status_code, 200)
 
         _args, kwargs = mock_test_rt.call_args
-        self.assertEqual(kwargs.get("tenant"), "consumers")
+        self.assertEqual(kwargs.get("tenant"), "common")
         self.assertEqual(
             kwargs.get("scope"),
             "Mail.Read User.Read offline_access openid profile",
@@ -939,7 +946,7 @@ class OAuthToolApiSaveTests(OAuthToolTestBase):
             self.assertEqual(resp.status_code, 200)
 
         _args, kwargs = mock_test_rt.call_args
-        self.assertEqual(kwargs.get("tenant"), "consumers")
+        self.assertEqual(kwargs.get("tenant"), "common")
         self.assertEqual(
             kwargs.get("scope"),
             "offline_access https://graph.microsoft.com/.default",
@@ -972,7 +979,7 @@ class OAuthToolApiSaveTests(OAuthToolTestBase):
             )
 
     @patch("outlook_web.services.graph.test_refresh_token_with_rotation")
-    def test_save_rejects_non_consumers_tenant(self, mock_test_rt):
+    def test_save_rejects_non_common_tenant(self, mock_test_rt):
         mock_test_rt.return_value = (True, None, None)
         with self.app.test_client() as client:
             self._login(client)
@@ -987,7 +994,7 @@ class OAuthToolApiSaveTests(OAuthToolTestBase):
                 },
             )
             self.assertEqual(resp.status_code, 400)
-            self.assertIn("tenant=consumers", resp.get_json().get("message", ""))
+            self.assertIn("tenant=common", resp.get_json().get("message", ""))
 
         mock_test_rt.assert_not_called()
 
@@ -1105,7 +1112,7 @@ class OAuthToolApiBlueprintTests(OAuthToolTestBase):
                 "/api/token-tool/prepare",
                 json={
                     "client_id": "cid",
-                    "tenant": "consumers",
+                    "tenant": "common",
                     "scope": "offline_access https://graph.microsoft.com/.default",
                     "redirect_uri": "http://localhost:5000/token-tool/callback",
                 },
@@ -1187,3 +1194,41 @@ class OAuthToolSettingsCompatTests(OAuthToolTestBase):
 
             settings_repo.set_setting("oauth_tool_client_secret", "enc:not-a-valid-token")
             self.assertEqual(settings_repo.get_oauth_tool_client_secret(), "")
+
+
+class OAuthToolCallbackPageTests(OAuthToolTestBase):
+    """方式一：一键授权 —— 回调页 postMessage 自动回传"""
+
+    def test_callback_page_success_contains_postmessage(self):
+        with self.app.test_client() as client:
+            self._login(client)
+            resp = client.get("/token-tool/callback?code=mock-code&state=mock-state")
+            self.assertEqual(resp.status_code, 200)
+            html = resp.get_data(as_text=True)
+            self.assertIn("oauth-callback", html)
+            self.assertIn("postMessage", html)
+            self.assertIn("callback_url", html)
+
+    def test_callback_page_error_contains_postmessage(self):
+        with self.app.test_client() as client:
+            self._login(client)
+            resp = client.get("/token-tool/callback?error=access_denied&error_description=user+denied")
+            self.assertEqual(resp.status_code, 200)
+            html = resp.get_data(as_text=True)
+            self.assertIn("oauth-callback", html)
+            self.assertIn("access_denied", html)
+
+    def test_callback_page_missing_params(self):
+        with self.app.test_client() as client:
+            self._login(client)
+            resp = client.get("/token-tool/callback")
+            self.assertEqual(resp.status_code, 200)
+            html = resp.get_data(as_text=True)
+            self.assertIn("missing_params", html)
+
+    def test_callback_page_is_public_endpoint(self):
+        # 回调页是微软 OAuth 重定向目标，设计上无需登录态（不含敏感信息，
+        # 仅回传 code+state，真正的 Token 换取发生在带登录态的 exchange 接口）
+        with self.app.test_client() as client:
+            resp = client.get("/token-tool/callback?code=mock-code&state=mock-state")
+            self.assertEqual(resp.status_code, 200)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from outlook_web.db import get_db
 from outlook_web.security.crypto import decrypt_data, encrypt_data
@@ -31,7 +31,7 @@ def _normalize_account_email_domain(email: str) -> str:
     return email.rsplit("@", 1)[-1].strip().lower()
 
 
-def _decrypt_account_field(account: Dict[str, Any], field_name: str) -> None:
+def _decrypt_account_field(account: dict[str, Any], field_name: str) -> None:
     value = account.get(field_name)
     if not value:
         return
@@ -48,8 +48,8 @@ def _decrypt_account_field(account: Dict[str, Any], field_name: str) -> None:
         )
 
 
-def _load_tags_by_account_ids(db: sqlite3.Connection, account_ids: List[int]) -> Dict[int, List[Dict[str, Any]]]:
-    tags_by_account: Dict[int, List[Dict[str, Any]]] = {}
+def _load_tags_by_account_ids(db: sqlite3.Connection, account_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    tags_by_account: dict[int, list[dict[str, Any]]] = {}
     if not account_ids:
         return tags_by_account
 
@@ -78,14 +78,14 @@ def _load_tags_by_account_ids(db: sqlite3.Connection, account_ids: List[int]) ->
     return tags_by_account
 
 
-def _hydrate_accounts(rows: List[sqlite3.Row], db: sqlite3.Connection) -> List[Dict[str, Any]]:
+def _hydrate_accounts(rows: list[sqlite3.Row], db: sqlite3.Connection) -> list[dict[str, Any]]:
     try:
         account_ids = [int(r["id"]) for r in rows]
     except Exception:
         account_ids = []
 
     tags_by_account = _load_tags_by_account_ids(db, account_ids)
-    accounts: List[Dict[str, Any]] = []
+    accounts: list[dict[str, Any]] = []
 
     for row in rows:
         account = dict(row)
@@ -105,7 +105,7 @@ def _hydrate_accounts(rows: List[sqlite3.Row], db: sqlite3.Connection) -> List[D
     return accounts
 
 
-def load_accounts(group_id: int = None) -> List[Dict]:
+def load_accounts(group_id: int | None = None) -> list[dict]:
     """从数据库加载邮箱账号（自动解密敏感字段，批量加载 tags 避免 N+1）"""
     db = get_db()
     if group_id:
@@ -132,12 +132,12 @@ def load_accounts(group_id: int = None) -> List[Dict]:
 
 def _build_account_list_where(
     *,
-    group_id: Optional[int],
+    group_id: int | None,
     search: str,
-    tag_ids: List[int],
-) -> Tuple[str, List[Any]]:
-    where_clauses: List[str] = []
-    params: List[Any] = []
+    tag_ids: list[int],
+) -> tuple[str, list[Any]]:
+    where_clauses: list[str] = []
+    params: list[Any] = []
 
     if group_id is not None:
         where_clauses.append("a.group_id = ?")
@@ -194,15 +194,15 @@ def _build_account_list_order(sort_by: str, sort_order: str) -> str:
 
 
 def load_accounts_page(
-    group_id: Optional[int] = None,
+    group_id: int | None = None,
     *,
     page: int = 1,
     page_size: int = 50,
     search: str = "",
-    tag_ids: Optional[List[int]] = None,
+    tag_ids: list[int] | None = None,
     sort_by: str = "refresh_time",
     sort_order: str = "asc",
-) -> Tuple[List[Dict[str, Any]], int, int]:
+) -> tuple[list[dict[str, Any]], int, int]:
     """按条件分页加载账号列表，保留 load_accounts 的全量语义给后台流程使用。"""
     db = get_db()
     normalized_page = max(1, int(page or 1))
@@ -248,7 +248,7 @@ def load_accounts_page(
     return _hydrate_accounts(rows, db), total_count, effective_page
 
 
-def get_account_by_email(email_addr: str) -> Optional[Dict]:
+def get_account_by_email(email_addr: str) -> dict | None:
     """根据邮箱地址获取账号（自动解密敏感字段）"""
     db = get_db()
     cursor = db.execute("SELECT * FROM accounts WHERE email = ?", (email_addr,))
@@ -262,7 +262,7 @@ def get_account_by_email(email_addr: str) -> Optional[Dict]:
     return account
 
 
-def get_account_by_id(account_id: int) -> Optional[Dict]:
+def get_account_by_id(account_id: int) -> dict | None:
     """根据 ID 获取账号（含 group_name/group_color，自动解密敏感字段）"""
     db = get_db()
     cursor = db.execute(
@@ -284,7 +284,7 @@ def get_account_by_id(account_id: int) -> Optional[Dict]:
     return account
 
 
-def get_preferred_verification_channel(account_id: int) -> Optional[str]:
+def get_preferred_verification_channel(account_id: int) -> str | None:
     db = get_db()
     row = db.execute(
         "SELECT preferred_verification_channel FROM accounts WHERE id = ?",
@@ -298,9 +298,9 @@ def get_preferred_verification_channel(account_id: int) -> Optional[str]:
     return None
 
 
-def update_preferred_verification_channel(account_id: int, channel: Optional[str]) -> bool:
+def update_preferred_verification_channel(account_id: int, channel: str | None) -> bool:
     normalized = str(channel or "").strip().lower()
-    value_to_store: Optional[str]
+    value_to_store: str | None
     if not normalized:
         value_to_store = None
     elif normalized in VERIFICATION_CHANNEL_FIELDS:
@@ -395,7 +395,7 @@ def add_account(
     imap_port: int = 993,
     imap_password: str = "",
     add_to_pool: bool = False,
-    db: Optional[sqlite3.Connection] = None,
+    db: sqlite3.Connection | None = None,
     commit: bool = True,
 ) -> bool:
     """添加邮箱账号（支持外部事务批量导入）"""
@@ -459,9 +459,9 @@ def add_account(
 def update_account(
     account_id: int,
     email_addr: str,
-    password: Optional[str],
-    client_id: Optional[str],
-    refresh_token: Optional[str],
+    password: str | None,
+    client_id: str | None,
+    refresh_token: str | None,
     group_id: int,
     remark: str,
     status: str,
@@ -561,7 +561,7 @@ def delete_account_by_id(account_id: int) -> bool:
     try:
         db.execute("DELETE FROM account_claim_logs WHERE account_id = ?", (account_id,))
         db.execute("DELETE FROM account_project_usage WHERE account_id = ?", (account_id,))
-        cursor = db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+        db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
         db.commit()
         return True
     except Exception:
@@ -600,7 +600,7 @@ def update_account_credentials(account_id: int, **fields) -> bool:
 
     # 加密敏感字段
     for key in ("password", "refresh_token", "imap_password"):
-        if key in updates and updates[key]:
+        if updates.get(key):
             updates[key] = encrypt_data(updates[key])
 
     db = get_db()
@@ -617,7 +617,7 @@ def update_account_credentials(account_id: int, **fields) -> bool:
         return False
 
 
-def get_account_compact_summary(account_id: int) -> Optional[Dict[str, str]]:
+def get_account_compact_summary(account_id: int) -> dict[str, str] | None:
     db = get_db()
     fields_sql = ", ".join(COMPACT_SUMMARY_FIELDS)
     row = db.execute(
@@ -629,7 +629,7 @@ def get_account_compact_summary(account_id: int) -> Optional[Dict[str, str]]:
     return {field: str(row[field] or "") for field in COMPACT_SUMMARY_FIELDS}
 
 
-def update_account_compact_summary(account_id: int, summary: Dict[str, Any]) -> bool:
+def update_account_compact_summary(account_id: int, summary: dict[str, Any]) -> bool:
     db = get_db()
     existing = db.execute("SELECT id FROM accounts WHERE id = ?", (account_id,)).fetchone()
     if not existing:
@@ -707,7 +707,7 @@ def update_telegram_cursor(account_id: int, checked_at: str) -> None:
     db.commit()
 
 
-def get_telegram_push_accounts() -> List[Dict]:
+def get_telegram_push_accounts() -> list[dict]:
     """返回所有 telegram_push_enabled=1 且处于 active 状态的账号。"""
     db = get_db()
     rows = db.execute("""SELECT a.id, a.email, a.account_type, a.provider, a.client_id, a.refresh_token,

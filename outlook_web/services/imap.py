@@ -8,7 +8,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from email.header import decode_header
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -25,7 +25,7 @@ TOKEN_URL_IMAP = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
 IMAP_SERVER_NEW = "outlook.live.com"
 IMAP_PORT = 993
 
-_token_cache: Dict[str, tuple] = {}
+_token_cache: dict[str, tuple] = {}
 _token_cache_lock = threading.Lock()
 
 
@@ -156,7 +156,7 @@ def get_email_body_and_type(msg) -> tuple:
     return html_text or plain_text, "html" if html_text else "text"
 
 
-def _select_folder(connection, folder: str) -> Optional[str]:
+def _select_folder(connection, folder: str) -> str | None:
     folder_map = {
         "inbox": ["INBOX"],
         "junk": ["Junk", "Junk Email", "Spam", "垃圾邮件"],
@@ -192,7 +192,7 @@ def _get_html_body(msg) -> str:
     return ""
 
 
-def _parse_batch_fetch_response(all_data: list) -> List[tuple]:
+def _parse_batch_fetch_response(all_data: list) -> list[tuple]:
     results = []
     for item in all_data:
         header = None
@@ -224,7 +224,7 @@ def _make_cache_key(client_id: str, refresh_token: str) -> str:
     return f"{client_id}:{rt_hash}"
 
 
-def clear_imap_token_cache(client_id: str = None) -> None:
+def clear_imap_token_cache(client_id: str | None = None) -> None:
     with _token_cache_lock:
         if client_id is None:
             _token_cache.clear()
@@ -234,7 +234,7 @@ def clear_imap_token_cache(client_id: str = None) -> None:
                 del _token_cache[key]
 
 
-def get_access_token_imap_result(client_id: str, refresh_token: str) -> Dict[str, Any]:
+def get_access_token_imap_result(client_id: str, refresh_token: str) -> dict[str, Any]:
     """获取 IMAP access_token（包含错误详情）"""
     cache_key = _make_cache_key(client_id, refresh_token)
     with _token_cache_lock:
@@ -302,7 +302,7 @@ def get_access_token_imap_result(client_id: str, refresh_token: str) -> Dict[str
         }
 
 
-def get_access_token_imap(client_id: str, refresh_token: str) -> Optional[str]:
+def get_access_token_imap(client_id: str, refresh_token: str) -> str | None:
     """获取 IMAP access_token"""
     result = get_access_token_imap_result(client_id, refresh_token)
     if result.get("success"):
@@ -317,7 +317,7 @@ def get_emails_imap(
     folder: str = "inbox",
     skip: int = 0,
     top: int = 20,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """使用 IMAP 获取邮件列表（支持分页和文件夹选择）- 默认使用新版服务器"""
     return get_emails_imap_with_server(account, client_id, refresh_token, folder, skip, top, IMAP_SERVER_NEW)
 
@@ -330,7 +330,7 @@ def get_emails_imap_with_server(
     skip: int = 0,
     top: int = 20,
     server: str = IMAP_SERVER_NEW,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """使用 IMAP 获取邮件列表（支持分页、文件夹选择和服务器选择）"""
     token_result = get_access_token_imap_result(client_id, refresh_token)
     if not token_result.get("success"):
@@ -341,7 +341,7 @@ def get_emails_imap_with_server(
     connection = None
     try:
         connection = imaplib.IMAP4_SSL(server, IMAP_PORT)
-        auth_string = f"user={account}\1auth=Bearer {access_token}\1\1".encode("utf-8")
+        auth_string = f"user={account}\1auth=Bearer {access_token}\1\1".encode()
         connection.authenticate("XOAUTH2", lambda x: auth_string)
 
         selected_folder = _select_folder(connection, folder)
@@ -497,7 +497,7 @@ def fetch_and_detail_imap_with_server(
     skip: int = 0,
     top: int = 1,
     server: str = IMAP_SERVER_NEW,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """一次 IMAP 连接完成邮件列表 + 最新一封详情。"""
     token_result = get_access_token_imap_result(client_id, refresh_token)
     if not token_result.get("success"):
@@ -513,7 +513,7 @@ def fetch_and_detail_imap_with_server(
 
     try:
         connection = imaplib.IMAP4_SSL(server, IMAP_PORT)
-        auth_string = f"user={account}\x01auth=Bearer {access_token}\x01\x01".encode("utf-8")
+        auth_string = f"user={account}\x01auth=Bearer {access_token}\x01\x01".encode()
         connection.authenticate("XOAUTH2", lambda x: auth_string)
 
         selected = _select_folder(connection, folder)
@@ -537,7 +537,7 @@ def fetch_and_detail_imap_with_server(
             return {"success": True, "emails": [], "detail": None}
 
         paged_ids = message_ids[start_idx:end_idx][::-1]
-        emails_data: List[Dict[str, Any]] = []
+        emails_data: list[dict[str, Any]] = []
         detail = None
 
         ids_str = b",".join(paged_ids)
@@ -615,7 +615,7 @@ def get_emails_imap_concurrent(
     skip: int = 0,
     top: int = 20,
     servers: tuple = (IMAP_SERVER_NEW, "outlook.office365.com"),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """并发连接多台 IMAP 服务器，返回第一个成功结果。"""
     if len(servers) <= 1:
         return get_emails_imap_with_server(
@@ -661,7 +661,7 @@ def get_email_detail_imap(
     refresh_token: str,
     message_id: str,
     folder: str = "inbox",
-) -> Optional[Dict]:
+) -> dict | None:
     """使用 IMAP 获取邮件详情（默认使用新版服务器）。"""
     return get_email_detail_imap_with_server(account, client_id, refresh_token, message_id, folder, IMAP_SERVER_NEW)
 
@@ -673,7 +673,7 @@ def get_email_detail_imap_with_server(
     message_id: str,
     folder: str = "inbox",
     server: str = IMAP_SERVER_NEW,
-) -> Optional[Dict]:
+) -> dict | None:
     """使用 IMAP 获取邮件详情（支持指定服务器）。"""
     access_token = get_access_token_imap(client_id, refresh_token)
     if not access_token:
@@ -682,7 +682,7 @@ def get_email_detail_imap_with_server(
     connection = None
     try:
         connection = imaplib.IMAP4_SSL(server, IMAP_PORT)
-        auth_string = f"user={account}\1auth=Bearer {access_token}\1\1".encode("utf-8")
+        auth_string = f"user={account}\1auth=Bearer {access_token}\1\1".encode()
         connection.authenticate("XOAUTH2", lambda x: auth_string)
 
         folder_map = {
@@ -708,7 +708,7 @@ def get_email_detail_imap_with_server(
         selected_folder = None
         for imap_folder in possible_folders:
             try:
-                status, response = connection.select(imap_folder, readonly=True)
+                status, _response = connection.select(imap_folder, readonly=True)
                 if status == "OK":
                     selected_folder = imap_folder
                     break
@@ -758,16 +758,16 @@ def delete_emails_imap(
     email_addr: str,
     client_id: str,
     refresh_token: str,
-    message_ids: List[str],
+    message_ids: list[str],
     server: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """通过 IMAP 删除邮件（永久删除）"""
     access_token = get_access_token_graph(client_id, refresh_token)
     if not access_token:
         return {"success": False, "error": "获取 Access Token 失败"}
 
     try:
-        auth_string = "user=%s\x01auth=Bearer %s\x01\x01" % (email_addr, access_token)
+        auth_string = f"user={email_addr}\x01auth=Bearer {access_token}\x01\x01"
 
         imap = imaplib.IMAP4_SSL(server, IMAP_PORT)
         imap.authenticate("XOAUTH2", lambda x: auth_string.encode("utf-8"))

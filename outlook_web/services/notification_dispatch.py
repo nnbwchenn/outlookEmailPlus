@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any
 
 from outlook_web.repositories import accounts as accounts_repo
 from outlook_web.repositories import notification_state as notification_state_repo
@@ -41,7 +42,7 @@ def _max_cursor_value(current: str, candidate: str) -> str:
         return candidate or ""
     if not candidate:
         return current
-    return candidate if candidate > current else current
+    return max(current, candidate)
 
 
 def build_source_key(source_type: str, raw_key: str) -> str:
@@ -98,8 +99,7 @@ def _extract_message_timestamp(raw_value: Any) -> str:
     text = str(raw_value).strip()
     if not text:
         return ""
-    if text.endswith("Z"):
-        text = text[:-1]
+    text = text.removesuffix("Z")
     return text.split(".")[0]
 
 
@@ -475,7 +475,7 @@ def _build_active_channels_for_source(
                 CHANNEL_TELEGRAM,
                 lambda current_source, message, bot_token=telegram_runtime["bot_token"], chat_id=telegram_runtime[
                     "chat_id"
-                ]: send_business_telegram_notification(  # noqa: E731
+                ]: send_business_telegram_notification(
                     current_source,
                     message,
                     bot_token=bot_token,
@@ -491,7 +491,7 @@ def _build_active_channels_for_source(
                 CHANNEL_WEBHOOK,
                 lambda current_source, message, url=webhook_runtime["url"], token=webhook_runtime[
                     "token"
-                ]: send_business_webhook_notification(  # noqa: E731
+                ]: send_business_webhook_notification(
                     current_source,
                     message,
                     url=url,

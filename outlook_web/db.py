@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import sqlite3
 import time
-from typing import Optional
 
 from flask import g
 
@@ -44,7 +43,7 @@ DB_SCHEMA_LAST_UPGRADE_TRACE_ID_KEY = "db_schema_last_upgrade_trace_id"
 DB_SCHEMA_LAST_UPGRADE_ERROR_KEY = "db_schema_last_upgrade_error"
 
 
-def create_sqlite_connection(database_path: Optional[str] = None) -> sqlite3.Connection:
+def create_sqlite_connection(database_path: str | None = None) -> sqlite3.Connection:
     """创建 SQLite 连接（带基础一致性/并发配置）"""
     path = database_path or config.get_database_path()
     conn = sqlite3.connect(path, timeout=30)
@@ -80,7 +79,7 @@ def register_db(app):
     app.teardown_appcontext(close_db)
 
 
-def init_db(database_path: Optional[str] = None):
+def init_db(database_path: str | None = None):
     """初始化数据库（含升级记录与可验证状态）"""
     path = database_path or config.get_database_path()
     login_password_default = config.get_login_password_default()

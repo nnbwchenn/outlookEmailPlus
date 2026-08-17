@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -17,7 +17,7 @@ GRAPH_MAIL_READ_SCOPES = ("Mail.Read", "Mail.ReadWrite")
 GRAPH_AUTH_EXPIRED_STATUS = 401
 
 
-def build_proxies(proxy_url: str) -> Optional[Dict[str, str]]:
+def build_proxies(proxy_url: str) -> dict[str, str] | None:
     """构建 requests 的 proxies 参数"""
     if not proxy_url:
         return None
@@ -30,7 +30,7 @@ def build_token_url(tenant: str | None = None) -> str:
     return TOKEN_URL_TEMPLATE.format(tenant=normalized_tenant)
 
 
-def get_access_token_graph_result(client_id: str, refresh_token: str, proxy_url: str = None) -> Dict[str, Any]:
+def get_access_token_graph_result(client_id: str, refresh_token: str, proxy_url: str | None = None) -> dict[str, Any]:
     """获取 Graph API access_token（包含错误详情）"""
     try:
         proxies = build_proxies(proxy_url)
@@ -100,7 +100,7 @@ def has_mail_read_permission(scope: Any) -> bool:
     return any(mail_scope in scope_str for mail_scope in GRAPH_MAIL_READ_SCOPES)
 
 
-def get_access_token_graph(client_id: str, refresh_token: str, proxy_url: str = None) -> Optional[str]:
+def get_access_token_graph(client_id: str, refresh_token: str, proxy_url: str | None = None) -> str | None:
     """获取 Graph API access_token"""
     result = get_access_token_graph_result(client_id, refresh_token, proxy_url)
     if result.get("success"):
@@ -114,8 +114,8 @@ def get_emails_graph(
     folder: str = "inbox",
     skip: int = 0,
     top: int = 20,
-    proxy_url: str = None,
-) -> Dict[str, Any]:
+    proxy_url: str | None = None,
+) -> dict[str, Any]:
     """使用 Graph API 获取邮件列表（支持分页和文件夹选择）"""
     token_result = get_access_token_graph_result(client_id, refresh_token, proxy_url)
     if not token_result.get("success"):
@@ -197,8 +197,8 @@ def get_email_detail_graph(
     client_id: str,
     refresh_token: str,
     message_id: str,
-    proxy_url: str = None,
-) -> Optional[Dict]:
+    proxy_url: str | None = None,
+) -> dict | None:
     """使用 Graph API 获取邮件详情"""
     access_token = get_access_token_graph(client_id, refresh_token, proxy_url)
     if not access_token:
@@ -229,8 +229,8 @@ def get_email_raw_graph(
     client_id: str,
     refresh_token: str,
     message_id: str,
-    proxy_url: str = None,
-) -> Optional[str]:
+    proxy_url: str | None = None,
+) -> str | None:
     """使用 Graph API 获取邮件 MIME RAW 内容。"""
     access_token = get_access_token_graph(client_id, refresh_token, proxy_url)
     if not access_token:
@@ -254,7 +254,7 @@ def get_email_raw_graph(
         return None
 
 
-def test_refresh_token(client_id: str, refresh_token: str, proxy_url: str = None) -> tuple[bool, str | None]:
+def test_refresh_token(client_id: str, refresh_token: str, proxy_url: str | None = None) -> tuple[bool, str | None]:
     """测试 refresh token 是否有效，返回 (是否成功, 错误信息)"""
     ok, err, _new_refresh_token = test_refresh_token_with_rotation(client_id, refresh_token, proxy_url)
     return ok, err
@@ -263,7 +263,7 @@ def test_refresh_token(client_id: str, refresh_token: str, proxy_url: str = None
 def test_refresh_token_with_rotation(
     client_id: str,
     refresh_token: str,
-    proxy_url: str = None,
+    proxy_url: str | None = None,
     *,
     tenant: str = "common",
     scope: str = DEFAULT_GRAPH_SCOPE,
@@ -323,7 +323,7 @@ def test_refresh_token_with_rotation(
             # 非 429 的明确错误响应（如 400/401/403）不需要重试，直接返回
             return False, last_error_msg, None
         except Exception as e:
-            last_error_msg = f"请求异常: {str(e)}"
+            last_error_msg = f"请求异常: {e!s}"
             if attempt < max_retries:
                 time.sleep(2**attempt)
                 continue
@@ -335,9 +335,9 @@ def test_refresh_token_with_rotation(
 def delete_emails_graph(
     client_id: str,
     refresh_token: str,
-    message_ids: List[str],
-    proxy_url: str = None,
-) -> Dict[str, Any]:
+    message_ids: list[str],
+    proxy_url: str | None = None,
+) -> dict[str, Any]:
     """通过 Graph API 批量删除邮件（永久删除）"""
     token_result = get_access_token_graph_result(client_id, refresh_token, proxy_url)
     if not token_result.get("success"):
@@ -365,7 +365,7 @@ def delete_emails_graph(
     batch_size = 20
     success_count = 0
     failed_count = 0
-    errors: List[str] = []
+    errors: list[str] = []
 
     for i in range(0, len(message_ids), batch_size):
         batch = message_ids[i : i + batch_size]
@@ -400,9 +400,9 @@ def delete_emails_graph(
                 errors.append(f"Batch request failed: {response.text}")
         except Exception as e:
             failed_count += len(batch)
-            errors.append(f"Network error: {str(e)}")
+            errors.append(f"Network error: {e!s}")
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "success": success_count > 0,
         "partial_success": success_count > 0 and failed_count > 0,
         "success_count": success_count,

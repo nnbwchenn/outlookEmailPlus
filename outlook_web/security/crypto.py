@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-from typing import Optional
 
 import bcrypt
 from cryptography.fernet import Fernet
@@ -10,7 +9,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from outlook_web import config
 
-_cipher_suite: Optional[Fernet] = None
+_cipher_suite: Fernet | None = None
 
 
 def hash_password(password: str) -> str:
@@ -30,7 +29,7 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def is_password_hashed(password: str) -> bool:
     """检查密码是否已经是 bcrypt 哈希值"""
-    return password.startswith("$2b$") or password.startswith("$2a$") or password.startswith("$2y$")
+    return password.startswith(("$2b$", "$2a$", "$2y$"))
 
 
 def get_encryption_key() -> bytes:
@@ -101,7 +100,7 @@ def decrypt_data(encrypted_data: str) -> str:
         # 解密失败，可能是密钥变更或数据损坏
         import sys
 
-        error_msg = f"Failed to decrypt data: {str(e)}"
+        error_msg = f"Failed to decrypt data: {e!s}"
         print(f"[ERROR] {error_msg}", file=sys.stderr)
         print(f"[ERROR] Data preview: {encrypted_data[:50]}...", file=sys.stderr)
         print(

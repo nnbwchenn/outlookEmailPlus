@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Outlook 邮件 Web 应用（兼容入口）
 
@@ -15,7 +14,6 @@ Outlook 邮件 Web 应用（兼容入口）
 """
 
 import os
-import sys
 
 try:
     # 兼容直接执行 `python web_outlook_app.py` 的场景：
@@ -48,21 +46,21 @@ app = create_app(autostart_scheduler=None if __name__ != "__main__" else False)
 
 
 __all__ = [
-    "app",
-    "main",
-    "create_sqlite_connection",
     "MAX_LOGIN_ATTEMPTS",
-    "sanitize_error_details",
+    "acquire_distributed_lock",
+    "app",
     "build_error_payload",
+    "create_sqlite_connection",
     "decrypt_data",
     "encrypt_data",
-    "acquire_distributed_lock",
+    "main",
     "release_distributed_lock",
+    "sanitize_error_details",
 ]
 
 
 def main() -> None:
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT", "5000"))
     host = os.getenv("HOST", "0.0.0.0")
     debug = os.getenv("FLASK_ENV", "production") != "production"
 

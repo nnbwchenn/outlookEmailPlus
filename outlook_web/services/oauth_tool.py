@@ -22,7 +22,7 @@ import logging
 import secrets
 import time
 from threading import Lock
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 # OAUTH_FLOW_STORE — 模块级内存存储,保存 OAuth 授权流程的中间状态
 # 线程安全 (Lock) + 自动过期 (20 分钟 TTL)
 # 设计权衡 (FD §5.2): 单进程内安全,多实例部署需迁移 Redis; 当前 Docker workers=1 约束下够用
-OAUTH_FLOW_STORE: Dict[str, Dict[str, Any]] = {}
+OAUTH_FLOW_STORE: dict[str, dict[str, Any]] = {}
 OAUTH_FLOW_LOCK = Lock()
 OAUTH_FLOW_TTL = 20 * 60  # 20 分钟 (PRD §5.1 Flow TTL)
 
@@ -51,13 +51,13 @@ def _prune_expired() -> None:
         logger.debug("[oauth_tool] 清理 %d 个过期 flow", len(expired))
 
 
-def store_oauth_flow(state: str, flow_data: Dict[str, Any]) -> None:
+def store_oauth_flow(state: str, flow_data: dict[str, Any]) -> None:
     with OAUTH_FLOW_LOCK:
         _prune_expired()
         OAUTH_FLOW_STORE[state] = {"created_at": time.time(), **flow_data}
 
 
-def get_oauth_flow(state: str) -> Optional[Dict[str, Any]]:
+def get_oauth_flow(state: str) -> dict[str, Any] | None:
     # 返回浅拷贝,防止调用方意外修改 Store 内部状态
     with OAUTH_FLOW_LOCK:
         _prune_expired()
@@ -70,7 +70,7 @@ def discard_oauth_flow(state: str) -> None:
         OAUTH_FLOW_STORE.pop(state, None)
 
 
-def generate_pkce() -> Tuple[str, str]:
+def generate_pkce() -> tuple[str, str]:
     """生成 PKCE code_verifier + code_challenge (S256)
 
     RFC 7636 规范实现。verifier 仅存在于服务端内存 (OAUTH_FLOW_STORE),
@@ -82,7 +82,7 @@ def generate_pkce() -> Tuple[str, str]:
     return verifier, challenge
 
 
-def start_oauth_flow(oauth_config: Dict[str, Any]) -> Tuple[Optional[str], str]:
+def start_oauth_flow(oauth_config: dict[str, Any]) -> tuple[str | None, str]:
     """
     生成 Microsoft OAuth 授权 URL
 
@@ -97,7 +97,7 @@ def start_oauth_flow(oauth_config: Dict[str, Any]) -> Tuple[Optional[str], str]:
     verifier, challenge = generate_pkce()
     state = secrets.token_urlsafe(24)
 
-    tenant = (oauth_config.get("tenant") or "consumers").strip()
+    tenant = (oauth_config.get("tenant") or "common").strip()
     store_oauth_flow(
         state,
         {
@@ -129,7 +129,7 @@ def start_oauth_flow(oauth_config: Dict[str, Any]) -> Tuple[Optional[str], str]:
     return authorize_url, state
 
 
-def exchange_code_for_tokens(code: str, oauth_config: Dict[str, Any], verifier: str) -> Tuple[Optional[Dict[str, Any]], Any]:
+def exchange_code_for_tokens(code: str, oauth_config: dict[str, Any], verifier: str) -> tuple[dict[str, Any] | None, Any]:
     """
     用授权码换取 token
 
@@ -137,7 +137,7 @@ def exchange_code_for_tokens(code: str, oauth_config: Dict[str, Any], verifier: 
         (token_data_dict, None)     — 成功
         (None, error_info)          — 失败
     """
-    tenant = oauth_config.get("tenant", "consumers")
+    tenant = oauth_config.get("tenant", "common")
     token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
 
     payload = {
@@ -172,7 +172,7 @@ def exchange_code_for_tokens(code: str, oauth_config: Dict[str, Any], verifier: 
 OIDC_SCOPES = {"openid", "profile", "email", "offline_access"}
 
 
-def validate_scope(scope_value: str) -> Tuple[str, Optional[str]]:
+def validate_scope(scope_value: str) -> tuple[str, str | None]:
     """
     校验并标准化 scope
 
@@ -214,7 +214,7 @@ def normalize_scope(scope_value: str) -> str:
     return " ".join(sorted(scopes))
 
 
-def _scope_resource(scope: str) -> Optional[str]:
+def _scope_resource(scope: str) -> str | None:
     """提取 scope 的资源前缀: https://graph.microsoft.com/Mail.Read → https://graph.microsoft.com"""
     if scope.startswith("https://"):
         parts = scope.split("/")
@@ -226,10 +226,10 @@ def _scope_resource(scope: str) -> Optional[str]:
 # PRD §2.7: 常见错误中文引导映射 — 将 Microsoft OAuth 错误码转为用户可操作的排查建议
 # 键名匹配 error_description 中的子串 (不区分大小写)
 ERROR_GUIDANCE_MAP = {
-    "unauthorized_client": "请到 Azure 门户确认应用注册已支持个人 Microsoft 账号（Supported account types 必须包含 Personal Microsoft accounts / consumers），并在『身份验证 → 高级设置』中开启『允许公共客户端流』",
+    "unauthorized_client": "当前 Client ID 不支持此授权方式：默认 Thunderbird ID 请保持 Redirect URI 为 https://localhost；若使用自建 Azure 应用，请确认已支持个人账号并在『身份验证 → 高级设置』中开启『允许公共客户端流』",
     "invalid_grant": "授权码已过期或已使用，请重新点击『登录 Microsoft』",
     "invalid_scope": "请到 Azure 门户 → API 权限 → 添加对应的 Microsoft Graph 委托权限",
-    "redirect_uri_mismatch": "回调地址不匹配，请确认 Azure 门户中注册的重定向 URI 与当前填写的一致",
+    "redirect_uri_mismatch": "回调地址不匹配：默认 Thunderbird ID 的 Redirect URI 必须为 https://localhost；使用自建应用时请确认 Azure 门户中注册的重定向 URI 与当前填写的一致",
     "interaction_required": "请勾选『强制 Consent』后重新授权",
     "consent_required": "此权限需要组织管理员同意，请联系 IT 管理员或切换为个人账号",
     "invalid_client": "Azure 仍将当前应用视为需要 client_secret 的机密客户端；请确认已开启『允许公共客户端流』，若仍报错请改用 Mobile and desktop applications 平台的 public redirect URI（如 http://localhost）并走手动粘贴回调 URL",
@@ -246,7 +246,7 @@ def map_error_guidance(error_detail: str) -> str:
     return "请检查配置后重试，如持续失败请参考 Azure 注册指引"
 
 
-def decode_jwt_payload(token: str) -> Optional[dict]:
+def decode_jwt_payload(token: str) -> dict | None:
     """不验签解码 JWT payload（纯展示用途）
 
     从 access_token 中提取 audience / scp / roles 等诊断信息,
